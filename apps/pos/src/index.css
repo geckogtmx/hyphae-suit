@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SHASO Base Overrides */
+:root {
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: dark;
+}
+
+body {
+    margin: 0;
+    background-color: #002029;
+    /* Ink Black */
+    color: #ffffff;
+    /* White */
+    min-width: 320px;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #004052;
+    /* Teal Deep */
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #005066;
+    /* Teal Mid */
+}
+
+/* Float Animation */
+@keyframes float-x {
+    0% {
+        transform: translateX(0px);
+    }
+
+    25% {
+        transform: translateX(-60px);
+    }
+
+    75% {
+        transform: translateX(60px);
+    }
+
+    100% {
+        transform: translateX(0px);
+    }
+}
+
+.animate-float-x {
+    animation: float-x 30s ease-in-out infinite;
+}

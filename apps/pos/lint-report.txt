@@ -1,0 +1,275 @@
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\AssemblyLineModal.tsx[24m[0m
+[0m   [2m20:49[22m  [33mwarning[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m136:63[22m  [33mwarning[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m152:82[22m  [33mwarning[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\CheckoutModal.tsx[24m[0m
+[0m    [2m3:55[22m  [33mwarning[39m  'Check' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m3:89[22m  [33mwarning[39m  'Hash' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m3:95[22m  [33mwarning[39m  'RefreshCcw' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m41:7[22m   [31merror[39m    Error: Cannot access variable before it is declared[0m
+[0m[0m
+[0m`resetStandardState` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\CheckoutModal.tsx:41:7[0m
+[0m  39 |     if (isOpen) {[0m
+[0m  40 |       setStep('ORDER_REVIEW');[0m
+[0m> 41 |       resetStandardState();[0m
+[0m     |       ^^^^^^^^^^^^^^^^^^ `resetStandardState` accessed before it is declared[0m
+[0m  42 |       setSplitPayments([]);[0m
+[0m  43 |       setSplitInput('');[0m
+[0m  44 |       setPartialMethod('Cash');[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\CheckoutModal.tsx:52:3[0m
+[0m  50 |   }, [step]);[0m
+[0m  51 |[0m
+[0m> 52 |   const resetStandardState = () => {[0m
+[0m     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 53 |       setTenderedValue('');[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 54 |       setTipValue('');[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 55 |       setActiveInput('PRIMARY');[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 56 |       setKeepChange(false);[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 57 |   };[0m
+[0m     | ^^^^^ `resetStandardState` is declared here[0m
+[0m  58 |[0m
+[0m  59 |   const groupedItems = useMemo(() => {[0m
+[0m  60 |     const groups: Record<string, { key: string; mainItem: OrderItem; items: OrderItem[]; total: number }> = {};  [2mreact-hooks/immutability[22m[0m
+[0m  [2m568:80[22m  [31merror[39m    Error: Cannot call impure function during render[0m
+[0m[0m
+[0m`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\CheckoutModal.tsx:568:80[0m
+[0m  566 |                 {step === 'ORDER_REVIEW' ? 'Review Order' : 'Checkout'}[0m
+[0m  567 |                 <span className="text-zinc-400 dark:text-zinc-600 mx-4 text-3xl font-thin">/</span>[0m
+[0m> 568 |                 <span className="text-zinc-400 font-mono text-lg">#{Math.floor(Math.random() * 1000)}</span>[0m
+[0m      |                                                                                ^^^^^^^^^^^^^ Cannot call impure function[0m
+[0m  569 |             </h2>[0m
+[0m  570 |             <button onClick={onClose} className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shadow-sm"><X size={24} /></button>[0m
+[0m  571 |          </div>                                                                                             [2mreact-hooks/purity[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\CompletionModal.tsx[24m[0m
+[0m  [2m32:13[22m  [31merror[39m  Error: Calling setState synchronously within an effect can trigger cascading renders[0m
+[0m[0m
+[0mEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:[0m
+[0m* Update external systems with the latest state from React.[0m
+[0m* Subscribe for updates from some external system, calling setState in a callback function when external state changes.[0m
+[0m[0m
+[0mCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\CompletionModal.tsx:32:13[0m
+[0m  30 |             };[0m
+[0m  31 |             const result = calculatePackagingFallback(payload);[0m
+[0m> 32 |             setPackagingInventory(result.packagingUsed);[0m
+[0m     |             ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect[0m
+[0m  33 |         } catch (e) {[0m
+[0m  34 |             console.error("Packaging Calc Failed", e);[0m
+[0m  35 |             setPackagingInventory({});  [2mreact-hooks/set-state-in-effect[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\ControlBar.tsx[24m[0m
+[0m  [2m7:3[22m  [33mwarning[39m  'Columns2' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\KitchenSummaryModal.tsx[24m[0m
+[0m  [2m21:53[22m  [33mwarning[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\OrderBuilder.tsx[24m[0m
+[0m    [2m1:47[22m  [33mwarning[39m  'useRef' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m17:61[22m  [31merror[39m    Error: Cannot call impure function during render[0m
+[0m[0m
+[0m`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\OrderBuilder.tsx:17:61[0m
+[0m  15 |   const [currentGroupIndex, setCurrentGroupIndex] = useState(0);[0m
+[0m  16 |   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>(editItem?.selectedModifiers || []);[0m
+[0m> 17 |   const [draftId] = useState(editItem?.uniqueId || `draft-${Date.now()}`);[0m
+[0m     |                                                             ^^^^^^^^^^ Cannot call impure function[0m
+[0m  18 |   [0m
+[0m  19 |   // State to trigger auto-advance after render[0m
+[0m  20 |   const [autoAdvanceTrigger, setAutoAdvanceTrigger] = useState<number | null>(null);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        [2mreact-hooks/purity[22m[0m
+[0m   [2m43:6[22m   [33mwarning[39m  React Hook useMemo has a missing dependency: 'isGroupVisible'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            [2mreact-hooks/exhaustive-deps[22m[0m
+[0m   [2m97:7[22m   [31merror[39m    Error: Cannot access variable before it is declared[0m
+[0m[0m
+[0m`finalizeOrder` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\OrderBuilder.tsx:97:7[0m
+[0m   95 |   useEffect(() => {[0m
+[0m   96 |     if (groups.length === 0) {[0m
+[0m>  97 |       finalizeOrder();[0m
+[0m      |       ^^^^^^^^^^^^^ `finalizeOrder` accessed before it is declared[0m
+[0m   98 |     }[0m
+[0m   99 |   }, []);[0m
+[0m  100 |   [0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\OrderBuilder.tsx:169:3[0m
+[0m  167 |   };[0m
+[0m  168 |[0m
+[0m> 169 |   const finalizeOrder = () => {[0m
+[0m      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 170 |     const orderItem: OrderItem = {[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 171 |       ...product,[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 172 |       uniqueId: draftId,[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 173 |       selectedModifiers,[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 174 |       finalPrice: currentTotal[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 175 |     };[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 176 |     onComplete(orderItem);[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 177 |   };[0m
+[0m      | ^^^^^ `finalizeOrder` is declared here[0m
+[0m  178 |[0m
+[0m  179 |   // If logic triggers early or no groups[0m
+[0m  180 |   if (!currentGroup) {                                                                                                                                                                                                                                                                                                                                                                                                                                 [2mreact-hooks/immutability[22m[0m
+[0m   [2m99:6[22m   [33mwarning[39m  React Hook useEffect has missing dependencies: 'finalizeOrder' and 'groups.length'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m106:15[22m  [31merror[39m    Error: Cannot access variable before it is declared[0m
+[0m[0m
+[0m`handleNext` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\OrderBuilder.tsx:106:15[0m
+[0m  104 |           // If the trigger matches the current index, we try to advance[0m
+[0m  105 |           if (autoAdvanceTrigger === currentGroupIndex) {[0m
+[0m> 106 |               handleNext();[0m
+[0m      |               ^^^^^^^^^^ `handleNext` accessed before it is declared[0m
+[0m  107 |           }[0m
+[0m  108 |           setAutoAdvanceTrigger(null);[0m
+[0m  109 |       }[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\OrderBuilder.tsx:152:3[0m
+[0m  150 |   };[0m
+[0m  151 |[0m
+[0m> 152 |   const handleNext = () => {[0m
+[0m      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 153 |     // We check validity again here, just in case[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 154 |     // NOTE: We don't block auto-advance here because auto-advance implies a selection was JUST made.[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 155 |     [0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 156 |     if (currentGroupIndex < groups.length - 1) {[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 157 |       setCurrentGroupIndex(prev => prev + 1);[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 158 |     } else {[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 159 |       finalizeOrder();[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 160 |     }[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 161 |   };[0m
+[0m      | ^^^^^ `handleNext` is declared here[0m
+[0m  162 |[0m
+[0m  163 |   const handlePrevious = () => {[0m
+[0m  164 |     if (currentGroupIndex > 0) {  [2mreact-hooks/immutability[22m[0m
+[0m  [2m110:6[22m   [33mwarning[39m  React Hook useEffect has a missing dependency: 'handleNext'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m143:74[22m  [33mwarning[39m  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\OrderRail.tsx[24m[0m
+[0m  [2m15:48[22m  [33mwarning[39m  'onLayoutChange' is defined but never used. Allowed unused args must match /^_/u                                                                                                                             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m23:9[22m   [33mwarning[39m  The 'activeOrders' logical expression could make the dependencies of useMemo Hook (at line 27) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook      [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m23:9[22m   [33mwarning[39m  The 'activeOrders' logical expression could make the dependencies of useMemo Hook (at line 31) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook      [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m23:9[22m   [33mwarning[39m  The 'activeOrders' logical expression could make the dependencies of useMemo Hook (at line 35) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook      [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m23:9[22m   [33mwarning[39m  The 'activeOrders' logical expression could make the dependencies of useCallback Hook (at line 93) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m40:73[22m  [33mwarning[39m  Unexpected any. Specify a different type                                                                                                                                                                     [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m84:35[22m  [33mwarning[39m  Unexpected any. Specify a different type                                                                                                                                                                     [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\Screensaver.tsx[24m[0m
+[0m   [2m2:36[22m  [33mwarning[39m  'useState' is defined but never used                                 [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m64:24[22m  [33mwarning[39m  'e' is defined but never used. Allowed unused args must match /^_/u  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\SettingsScreen.tsx[24m[0m
+[0m    [2m3:68[22m   [33mwarning[39m  'Circle' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m3:90[22m   [33mwarning[39m  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m3:108[22m  [33mwarning[39m  'Box' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m13:74[22m   [33mwarning[39m  'products' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m102:50[22m   [31merror[39m    Error: Cannot call impure function during render[0m
+[0m[0m
+[0m`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\SettingsScreen.tsx:102:50[0m
+[0m  100 |     if (!activeSequence) return;[0m
+[0m  101 |     const arrayIndex = visualIndex - 1; [0m
+[0m> 102 |     const newStep: ModifierGroup = { id: `step_${Date.now()}`, name: 'New Step', required: true, multiSelect: false, options: [] };[0m
+[0m      |                                                  ^^^^^^^^^^ Cannot call impure function[0m
+[0m  103 |     const currentGroups = activeSequence.modifierGroups || [];[0m
+[0m  104 |     updateSequence({ ...activeSequence, modifierGroups: [...currentGroups.slice(0, arrayIndex), newStep, ...currentGroups.slice(arrayIndex)] });[0m
+[0m  105 |     setSelectedStepId(newStep.id);  [2mreact-hooks/purity[22m[0m
+[0m  [2m195:231[22m  [33mwarning[39m  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\components\Stage.tsx[24m[0m
+[0m  [2m43:8[22m   [33mwarning[39m  React Hook useEffect has missing dependencies: 'state.items.length' and 'state.loyaltyProfile'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m70:44[22m  [31merror[39m    Error: Cannot call impure function during render[0m
+[0m[0m
+[0m`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\components\Stage.tsx:70:44[0m
+[0m  68 |             const orderItem: OrderItem = {[0m
+[0m  69 |                 ...product,[0m
+[0m> 70 |                 uniqueId: `${product.id}-${Date.now()}`,[0m
+[0m     |                                            ^^^^^^^^^^ Cannot call impure function[0m
+[0m  71 |                 selectedModifiers: [],[0m
+[0m  72 |                 finalPrice: product.price[0m
+[0m  73 |             };  [2mreact-hooks/purity[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\context\OrderContext.tsx[24m[0m
+[0m   [2m32:13[22m  [31merror[39m    'itemTotal' is never reassigned. Use 'const' instead                                                                            [2mprefer-const[22m[0m
+[0m  [2m239:15[22m  [33mwarning[39m  'method' is assigned a value but never used                                                                                     [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m437:14[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\context\ThemeContext.tsx[24m[0m
+[0m  [2m45:14[22m  [33mwarning[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\data\mock_data.ts[24m[0m
+[0m  [2m1:129[22m  [33mwarning[39m  'SystemInfo' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\hooks\useLongPress.ts[24m[0m
+[0m  [2m19:51[22m  [31merror[39m  Error: Cannot access variable before it is declared[0m
+[0m[0m
+[0m`preventDefault` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\hooks\useLongPress.ts:19:51[0m
+[0m  17 |     (event: React.MouseEvent | React.TouchEvent) => {[0m
+[0m  18 |       if (shouldPreventDefault && event.target) {[0m
+[0m> 19 |         event.target.addEventListener('touchend', preventDefault, { passive: false });[0m
+[0m     |                                                   ^^^^^^^^^^^^^^ `preventDefault` accessed before it is declared[0m
+[0m  20 |         target.current = event.target;[0m
+[0m  21 |       }[0m
+[0m  22 |       timeout.current = setTimeout(() => {[0m
+[0m[0m
+[0mE:\git\hyphae-pos\src\hooks\useLongPress.ts:45:3[0m
+[0m  43 |   );[0m
+[0m  44 |[0m
+[0m> 45 |   const preventDefault = (event: Event) => {[0m
+[0m     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 46 |     if (event instanceof TouchEvent && event.touches.length < 2 && event.preventDefault) {[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 47 |       event.preventDefault();[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 48 |     }[0m
+[0m     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 49 |   };[0m
+[0m     | ^^^^^ `preventDefault` is declared here[0m
+[0m  50 |[0m
+[0m  51 |   return {[0m
+[0m  52 |     onMouseDown: (e: React.MouseEvent) => start(e),  [2mreact-hooks/immutability[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\hooks\useMenuData.ts[24m[0m
+[0m   [2m15:21[22m  [33mwarning[39m  'setInventory' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m16:19[22m  [33mwarning[39m  'setRecipes' is assigned a value but never used    [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m41:16[22m  [33mwarning[39m  'err' is defined but never used                    [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m87:16[22m  [33mwarning[39m  'e' is defined but never used                      [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m133:20[22m  [33mwarning[39m  'e' is defined but never used                      [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mE:\git\hyphae-pos\src\utils\orderHelpers.ts[24m[0m
+[0m  [2m75:40[22m  [33mwarning[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[31m[1m✖ 48 problems (10 errors, 38 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  1 error and 0 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

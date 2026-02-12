@@ -1,0 +1,147 @@
+{
+  "concepts": [
+    { "id": "tacocracy", "name": "Tacocracy", "color": "orange-500" },
+    { "id": "codebs_concept", "name": "Code BS", "color": "red-500" }
+  ],
+  "categories": [
+    { "id": "burgers", "name": "Burgers", "conceptId": "codebs_concept" },
+    { "id": "tacos", "name": "Tacos", "conceptId": "tacocracy" },
+    { "id": "burritos", "name": "Burritos", "conceptId": "tacocracy" }
+  ],
+  "products": [
+    { 
+      "id": "codebs_burger", 
+      "name": "The Code BS", 
+      "price": 10.00, 
+      "categoryId": "burgers", 
+      "requiresMods": true,
+      "metadata": { "kitchenLabel": "Brioche Buns", "quantity": 1 },
+      "packaging": { "sku": "SKU_WRAPPER", "volumePoints": 2, "isMessy": true },
+      "modifierGroups": [
+        {
+          "id": "mod_burger_type",
+          "name": "Burger Type",
+          "required": true,
+          "multiSelect": false,
+          "options": [
+            { "id": "single", "name": "Single", "price": 0, "metadata": { "kitchenLabel": "Beef Patties", "quantity": 1 } },
+            { "id": "double", "name": "Double", "price": 3.00, "metadata": { "kitchenLabel": "Beef Patties", "quantity": 2 } },
+            { "id": "triple", "name": "Triple", "price": 6.00, "metadata": { "kitchenLabel": "Beef Patties", "quantity": 3 } },
+            { "id": "veggie", "name": "Veggie", "price": 0, "metadata": { "kitchenLabel": "Veggie Patties", "quantity": 1 } }
+          ]
+        },
+        {
+          "id": "mod_burger_toppings",
+          "name": "Topping Selection",
+          "required": true,
+          "multiSelect": false,
+          "options": [
+            { "id": "plain", "name": "Plain Onion", "price": 0 },
+            { "id": "jalapeno", "name": "Jalapeño Onions", "price": 0.50 },
+            { "id": "bacon_jam", "name": "Bacon Jam Onions", "price": 1.50 },
+            { "id": "blue_cheese", "name": "Blue Cheese Onions", "price": 1.50 }
+          ]
+        },
+        {
+          "id": "mod_burger_sauce",
+          "name": "Sauce Selection",
+          "required": false,
+          "multiSelect": true,
+          "options": [
+            { "id": "alioli", "name": "Alioli", "price": 0 },
+            { "id": "vegan_mayo", "name": "Vegan Mayo", "price": 0 },
+            { "id": "chipotle", "name": "Chipotle", "price": 0 },
+            { "id": "ketchup", "name": "Ketchup", "price": 0 },
+            { "id": "american_cheese", "name": "American Cheese", "price": 1.00 }
+          ]
+        },
+        {
+          "id": "mod_burger_sides",
+          "name": "Sides",
+          "required": false,
+          "multiSelect": false,
+          "variant": "sub_item",
+          "options": [
+            { "id": "small_fries", "name": "Small Fries", "price": 0 },
+            { "id": "large_fries", "name": "Large Fries", "price": 1.50 }
+          ]
+        },
+        {
+          "id": "mod_burger_seasoning",
+          "name": "Seasoning Selection",
+          "required": false,
+          "multiSelect": false,
+          "options": [
+            { "id": "umami", "name": "Umami", "price": 0 },
+            { "id": "salt_vinegar", "name": "Salt N Vinegar", "price": 0 },
+            { "id": "tajin", "name": "Tajin", "price": 0 },
+            { "id": "truffles", "name": "Truffles", "price": 0.50 },
+            { "id": "plain", "name": "Plain", "price": 0 },
+            { "id": "dirty_style", "name": "Dirty Fries", "price": 3.00 }
+          ],
+          "dependency": {
+            "groupId": "mod_burger_sides"
+          }
+        }
+      ] 
+    },
+    { 
+      "id": "codebs_basic", 
+      "name": "Basic Smash", 
+      "price": 8.00, 
+      "categoryId": "burgers", 
+      "requiresMods": true, 
+      "metadata": { "kitchenLabel": "Brioche Buns", "quantity": 1 },
+      "packaging": { "sku": "SKU_WRAPPER", "volumePoints": 2, "isMessy": true },
+      "modifierGroups": [
+        {
+          "id": "mod_burger_type",
+          "name": "Burger Type",
+          "required": true,
+          "multiSelect": false,
+          "options": [
+            { "id": "single", "name": "Single", "price": 0, "metadata": { "kitchenLabel": "Beef Patties", "quantity": 1 } },
+            { "id": "double", "name": "Double", "price": 3.00, "metadata": { "kitchenLabel": "Beef Patties", "quantity": 2 } },
+            { "id": "triple", "name": "Triple", "price": 6.00, "metadata": { "kitchenLabel": "Beef Patties", "quantity": 3 } },
+            { "id": "veggie", "name": "Veggie", "price": 0, "metadata": { "kitchenLabel": "Veggie Patties", "quantity": 1 } }
+          ]
+        },
+        {
+          "id": "mod_burger_sides",
+          "name": "Sides",
+          "required": false,
+          "multiSelect": false,
+          "variant": "sub_item",
+          "options": [
+            { "id": "small_fries", "name": "Small Fries", "price": 0 },
+            { "id": "large_fries", "name": "Large Fries", "price": 1.50 }
+          ]
+        },
+        {
+          "id": "mod_burger_seasoning",
+          "name": "Seasoning Selection",
+          "required": false,
+          "multiSelect": false,
+          "options": [
+            { "id": "umami", "name": "Umami", "price": 0 },
+            { "id": "salt_vinegar", "name": "Salt N Vinegar", "price": 0 },
+            { "id": "tajin", "name": "Tajin", "price": 0 },
+            { "id": "truffles", "name": "Truffles", "price": 0.50 },
+            { "id": "plain", "name": "Plain", "price": 0 },
+            { "id": "dirty_style", "name": "Dirty Fries", "price": 3.00 }
+          ],
+          "dependency": {
+            "groupId": "mod_burger_sides"
+          }
+        }
+      ] 
+    },
+    { "id": "t1", "name": "Al Pastor", "price": 4.50, "categoryId": "tacos", "requiresMods": true, "packaging": { "sku": "SKU_BOAT_SMALL", "volumePoints": 1, "isMessy": true }, "modifierGroups": [] },
+    { "id": "t2", "name": "Carne Asada", "price": 5.00, "categoryId": "tacos", "requiresMods": true, "packaging": { "sku": "SKU_BOAT_SMALL", "volumePoints": 1, "isMessy": true }, "modifierGroups": [] },
+    { "id": "t3", "name": "Carnitas", "price": 4.50, "categoryId": "tacos", "requiresMods": true, "packaging": { "sku": "SKU_BOAT_SMALL", "volumePoints": 1, "isMessy": true }, "modifierGroups": [] },
+    { "id": "t4", "name": "Veggie Nopal", "price": 4.00, "categoryId": "tacos", "requiresMods": true, "packaging": { "sku": "SKU_BOAT_SMALL", "volumePoints": 1, "isMessy": true }, "modifierGroups": [] },
+    { "id": "b1", "name": "Mission Style", "price": 12.00, "categoryId": "burritos", "requiresMods": true, "packaging": { "sku": "SKU_WRAPPER_XL", "volumePoints": 3, "isMessy": false }, "modifierGroups": [] },
+    { "id": "b2", "name": "Cali Burrito", "price": 13.50, "categoryId": "burritos", "requiresMods": true, "packaging": { "sku": "SKU_WRAPPER_XL", "volumePoints": 3, "isMessy": false }, "modifierGroups": [] },
+    { "id": "b3", "name": "Bowl Option", "price": 12.00, "categoryId": "burritos", "requiresMods": true, "packaging": { "sku": "SKU_BOWL_LID", "volumePoints": 3, "isMessy": false }, "modifierGroups": [] }
+  ]
+}

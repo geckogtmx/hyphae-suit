@@ -1,0 +1,161 @@
+﻿
+> hyphae-mpos-sales-center@0.0.0 lint
+> cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext ts,tsx
+
+
+E:\git\hyphae-pos\src\components\AssemblyLineModal.tsx
+   20:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\git\hyphae-pos\src\components\CheckoutModal.tsx
+  50:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+E:\git\hyphae-pos\src\components\CheckoutModal.tsx:50:13
+  48 |     useEffect(() => {
+  49 |         if (isOpen) {
+> 50 |             setStep('ORDER_REVIEW');
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  51 |             resetStandardState();
+  52 |             setSplitPayments([]);
+  53 |             setSplitInput('');  react-hooks/set-state-in-effect
+  59:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+E:\git\hyphae-pos\src\components\CheckoutModal.tsx:59:9
+  57 |
+  58 |     useEffect(() => {
+> 59 |         resetStandardState();
+     |         ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  60 |     }, [step]);
+  61 |
+  62 |                                                                                                            react-hooks/set-state-in-effect
+
+E:\git\hyphae-pos\src\components\CompletionModal.tsx
+  2:27  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\git\hyphae-pos\src\components\ControlBar.tsx
+  7:3  warning  'Columns2' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\git\hyphae-pos\src\components\KitchenSummaryModal.tsx
+  21:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\git\hyphae-pos\src\components\OrderBuilder.tsx
+   41:26  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `isGroupVisible`, but the source dependencies were [product.modifierGroups, selectedModifiers]. Inferred different dependency than source.
+
+E:\git\hyphae-pos\src\components\OrderBuilder.tsx:41:26
+  39 |
+  40 |   // Compute visible groups dynamically
+> 41 |   const groups = useMemo(() => {
+     |                          ^^^^^^^
+> 42 |     return (product.modifierGroups || []).filter(g => isGroupVisible(g));
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 43 |   }, [product.modifierGroups, selectedModifiers]);
+     | ^^^^ Could not preserve existing manual memoization
+  44 |
+  45 |   // Prune selections for hidden groups
+  46 |   useEffect(() => {                                                                                                                                             react-hooks/preserve-manual-memoization
+   41:26  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `isGroupVisible`, but the source dependencies were [product.modifierGroups, selectedModifiers]. Inferred different dependency than source.
+
+E:\git\hyphae-pos\src\components\OrderBuilder.tsx:41:26
+  39 |
+  40 |   // Compute visible groups dynamically
+> 41 |   const groups = useMemo(() => {
+     |                          ^^^^^^^
+> 42 |     return (product.modifierGroups || []).filter(g => isGroupVisible(g));
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 43 |   }, [product.modifierGroups, selectedModifiers]);
+     | ^^^^ Could not preserve existing manual memoization
+  44 |
+  45 |   // Prune selections for hidden groups
+  46 |   useEffect(() => {                                                                                                                                             react-hooks/preserve-manual-memoization
+   43:6   warning  React Hook useMemo has a missing dependency: 'isGroupVisible'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react-hooks/exhaustive-deps
+   48:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+E:\git\hyphae-pos\src\components\OrderBuilder.tsx:48:5
+  46 |   useEffect(() => {
+  47 |     const visibleGroupIds = new Set(groups.map(g => g.id));
+> 48 |     setSelectedModifiers(prev => {
+     |     ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  49 |       // Filter out selections that belong to groups that are no longer visible
+  50 |       const newSelections = prev.filter(m => visibleGroupIds.has(m.groupId));
+  51 |       if (newSelections.length !== prev.length) {  react-hooks/set-state-in-effect
+  122:6   warning  React Hook useEffect has missing dependencies: 'finalizeOrder' and 'groups.length'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+  129:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+E:\git\hyphae-pos\src\components\OrderBuilder.tsx:129:9
+  127 |       // If the trigger matches the current index, we try to advance
+  128 |       if (autoAdvanceTrigger === currentGroupIndex) {
+> 129 |         handleNext();
+      |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  130 |       }
+  131 |       setAutoAdvanceTrigger(null);
+  132 |     }                                                                                                                                 react-hooks/set-state-in-effect
+  133:6   warning  React Hook useEffect has a missing dependency: 'handleNext'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react-hooks/exhaustive-deps
+  166:74  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-explicit-any
+
+E:\git\hyphae-pos\src\components\OrderRail.tsx
+  15:48  warning  'onLayoutChange' is defined but never used. Allowed unused args must match /^_/u                                                                                                                             @typescript-eslint/no-unused-vars
+  23:9   warning  The 'activeOrders' logical expression could make the dependencies of useMemo Hook (at line 27) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook      react-hooks/exhaustive-deps
+  23:9   warning  The 'activeOrders' logical expression could make the dependencies of useMemo Hook (at line 31) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook      react-hooks/exhaustive-deps
+  23:9   warning  The 'activeOrders' logical expression could make the dependencies of useMemo Hook (at line 35) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook      react-hooks/exhaustive-deps
+  23:9   warning  The 'activeOrders' logical expression could make the dependencies of useCallback Hook (at line 93) change on every render. To fix this, wrap the initialization of 'activeOrders' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  40:73  warning  Unexpected any. Specify a different type                                                                                                                                                                     @typescript-eslint/no-explicit-any
+  84:35  warning  Unexpected any. Specify a different type                                                                                                                                                                     @typescript-eslint/no-explicit-any
+
+E:\git\hyphae-pos\src\components\Screensaver.tsx
+   2:36  warning  'useState' is defined but never used                                 @typescript-eslint/no-unused-vars
+  64:24  warning  'e' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\git\hyphae-pos\src\components\SettingsScreen.tsx
+  197:242  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\git\hyphae-pos\src\context\OrderContext.tsx
+  239:15  warning  'method' is assigned a value but never used                                                                                     @typescript-eslint/no-unused-vars
+  437:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+E:\git\hyphae-pos\src\context\ThemeContext.tsx
+  45:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+E:\git\hyphae-pos\src\data\mock_data.ts
+  1:129  warning  'SystemInfo' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\git\hyphae-pos\src\hooks\useMenuData.ts
+   15:21  warning  'setInventory' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   16:19  warning  'setRecipes' is assigned a value but never used    @typescript-eslint/no-unused-vars
+   41:16  warning  'err' is defined but never used                    @typescript-eslint/no-unused-vars
+   87:16  warning  'e' is defined but never used                      @typescript-eslint/no-unused-vars
+  133:20  warning  'e' is defined but never used                      @typescript-eslint/no-unused-vars
+
+E:\git\hyphae-pos\src\utils\orderHelpers.ts
+  75:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 36 problems (6 errors, 30 warnings)
+
