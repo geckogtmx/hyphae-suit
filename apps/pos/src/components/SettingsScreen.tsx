@@ -23,7 +23,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useMenuData } from '../hooks/useMenuData';
-import { Product, ModifierGroup, ModifierOption } from '../types';
+import { Product, ModifierGroup, ModifierOption } from '@hyphae/schemas';
 
 interface SettingsScreenProps {
   onClose: () => void;

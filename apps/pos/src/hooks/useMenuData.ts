@@ -7,7 +7,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Concept, Category, Product, InventoryItem, RecipeDefinition, LoyaltyTier } from '../types';
+import { Concept, Category, Product, InventoryItem, RecipeDefinition, LoyaltyTier } from '@hyphae/schemas';
 import {
   CONCEPTS,
   CATEGORIES,
@@ -150,7 +150,7 @@ export const useMenuData = () => {
     getProductsByCategory,
     getProductsByConcept,
     saveProduct,
-    saveBatchProducts: async () => true, // Placeholder
+    saveBatchProducts: async (products: Product[]) => { const _ = products; return true; }, // Placeholder
     fetchMenuData: () => queryClient.invalidateQueries(),
   };
 };
