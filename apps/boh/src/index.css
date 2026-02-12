@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-100: #0A0A0A;
+  --color-ink-500: #121214;
+  --color-jet-500: #1A1B1E;
+  --color-jet-700: #2A2B2E;
+  --color-teal-deep: #0D9488;
+  --color-teal-mid: #14B8A6;
+  --color-teal-bright: #2DD4BF;
+  --color-lime-500: #84CC16;
+  --color-red-500: #EF4444;
+  --color-amber-500: #F59E0B;
+}
+
+@layer base {
+  body {
+    @apply bg-ink-100 text-white font-sans antialiased;
+  }
+}
