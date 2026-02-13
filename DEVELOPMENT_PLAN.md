@@ -1096,3 +1096,21 @@ Total:      12 weeks to production-ready MVP
 _Document Version: 1.0_  
 _Last Updated: January 16, 2026_  
 _Next Review: After Phase 0 completion_
+
+---
+
+## 📝 Implementation Log
+
+### Phase 1.5: Core Integration (Completed Feb 2026)
+
+> **Focus:** Enabling `apps/core` to manage the supply chain and ensuring browser compatibility.
+
+#### Achievements
+- **Shared Database Package**: Created `@hyphae/database` with Drizzle ORM to serve as the source of truth for POS and Core.
+- **Core Views Implemented**:
+  - `SuppliersView`: Manage supplier relationships.
+  - `InventoryView`: Track stock levels and transactions.
+  - `RecipesView`: Recipe builder with ingredient costs.
+- **Browser Compatibility**:
+  - Implemented a **Mock Database Client** in `@hyphae/database` to prevent `libsql` crashes in non-Node environments.
+  - Created a **Client-Side Seeder** (`clientSeed.ts`) to populate the in-memory database for UI verification.

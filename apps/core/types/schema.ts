@@ -23,8 +23,11 @@ import { Concept, Category, Product, ModifierGroup, ModifierOption, RecipeCompon
 // --- 3. RECIPES (Back of House) ---
 
 export interface Recipe {
-  productId: string; // FK to Product
+  productId?: string; // FK to Product (Optional for BATCH)
   name: string;
+  type: 'BATCH' | 'ASSEMBLY';
+  yieldQuantity: number;
+  yieldUnit: string;
   stationId: string;
   cookTimeSeconds: number;
   activePrepTimeSeconds: number;

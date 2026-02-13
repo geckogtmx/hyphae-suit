@@ -11,6 +11,8 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "@hyphae/schemas": "workspace:^",
+    "@hyphae/database": "workspace:*",
+    "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

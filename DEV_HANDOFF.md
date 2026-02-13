@@ -1,39 +1,44 @@
-# Developer Handoff
-Date: 2026-02-12
+# Session Handoff: Core Integration & Browser Compatibility
+**Date:** 2026-02-12
+**Author:** AI Assistant (Antigravity)
 
-## Session Summary
-**Ported Product Builder to Core & Migrated Shared Types**
+## 📝 Session Summary
 
-We successfully moved the shared domain types from `apps/pos` to a new `@hyphae/schemas` workspace package. We then ported the "Product Builder" (previously `SettingsScreen` in POS) to the Core application as a new `ProductBuilder` component. Both applications now consume types from the shared package, ensuring data consistency across the monorepo.
+We successfully integrated `apps/core` with the shared `@hyphae/database` package and resolved critical browser compatibility issues. The Core application now loads in the browser using a Mock Database Client and an in-memory Client-Side Seeder.
 
 ### ✅ Completed
-- Created `@hyphae/schemas` workspace package with `tsc` build process.
-- Migrated `Product`, `ModifierGroup`, `InventoryItem`, `RecipeDefinition`, etc., to `@hyphae/schemas`.
-- Extended shared schemas to support Core-specific fields (`active`, `stationId`, `logisticsMetadata`, etc.).
-- Implemented `ProductBuilder.tsx` in `apps/core/components` (ported from POS `SettingsScreen`).
-- Integrated `ProductBuilder` into `apps/core/App.tsx`, replacing the placeholder view.
-- Refactored `apps/pos` to import types from `@hyphae/schemas`.
-- Verified builds for `@hyphae/schemas`, `@hyphae/core`, and `@hyphae/pos`.
+- **Core Integration**: Connected `apps/core` to `@hyphae/database`.
+- **Browser Compatibility**:
+    - Implemented `libsql` crash prevention in `packages/database/src/index.ts` by injecting a Mock Client when `window` is defined.
+    - Updated `packages/database/package.json` to correctly export `./mock_data`.
+- **Data Seeding**: Created `apps/core/lib/clientSeed.ts` to populate the in-memory database with mock data on app load.
+- **Core Views**: Implemented and verified `SuppliersView`, `InventoryView`, and `RecipesView`.
+- **Documentation**: Updated `DEVELOPMENT_PLAN.md`, `task.md`, and `walkthrough.md`.
 
 ### 🚧 In Progress
-- **Mock Data Alignment**: While we updated `MOCK_DATA` in `App.tsx` and `mock_data.ts` in POS, a true "Single Source of Truth" for data is still pending a backend/database implementation. Currently, each app has its own mock data that adheres to the shared schema.
+- **Verification**: UI Verification is complete (app loads, navigation works, data displays).
+    - *Note:* Data is ephemeral (in-memory) and resets on reload.
+- **Backend**: We are still using a local-first/mock approach. Real backend integration (per Phase 2) is next.
 
 ### 📋 Next Steps (Priority Order)
-1. **Unit Testing**: Add unit tests for `ProductBuilder` in Core and the shared logic in `@hyphae/schemas`.
-2. **Backend Integration**: Replace the mock data in `App.tsx` and `useMenuData.ts` with actual API calls to a backend service (Firebase/Supabase/Custom).
-3. **Inventory Sync**: Implement real-time inventory syncing between Core (BOH) and POS.
+1.  **Implement Authentication Flow (Phase 2.1)**: Secure the app with PIN login and JWT.
+2.  **Menu Sync Protocol (Phase 2.2)**: Implement the sync mechanism between Core and POS.
+3.  **Real Backend**: Replace the Mock Client with a real `libsql` HTTP client (or local-first sync) once the backend server is ready.
+4.  **Unit Tests**: Add tests for the new `clientSeed.ts` logic.
 
 ### 🔍 Key Context
 - **Files Modified**:
-    - `packages/schemas/src/types.ts`: **New** shared type definitions.
-    - `apps/core/App.tsx`: integrated `ProductBuilder`, updated mock data.
-    - `apps/core/components/ProductBuilder.tsx`: **New** component.
-    - `apps/pos/src/types.ts`: Refactored to re-export shared types.
-    - `apps/pos/src/components/SettingsScreen.tsx`: Updated imports.
-- **Dependencies**: Added `@hyphae/schemas` as a workspace dependency to `apps/core` and `apps/pos`.
-- **Configuration**: Updated `tsconfig.json` in `packages/schemas`.
+    - `packages/database/src/index.ts`: Added Mock Client logic.
+    - `packages/database/package.json`: Added `./mock_data` export.
+    - `apps/core/lib/clientSeed.ts`: New file for client-side seeding.
+    - `apps/core/App.tsx`: Updated to run seeder on mount.
+    - `apps/core/views/*`: Updated imports.
+    - `DEVELOPMENT_PLAN.md`: Added Implementation Log.
+- **Dependencies**: No new npm packages added.
+- **Known Issues**:
+    - The "Mock Client" returns empty arrays for queries not handled by the mock (which is most of them, except what we explicitly seed/interceptor).
+    - `clientSeed.ts` relies on the in-memory database which is reset on reload.
 
 ### 💡 Notes for Next Session
-- The `ProductBuilder` active state relies on the `active` field which is optional in the shared schema but treated as required/defaulted in some Core logic. 
-- Watch out for `inventoryItemId` naming convention. We standardized on `inventoryItemId` in `RecipeComponent`, but some legacy POS code might still look for `inventoryId` if not fully caught (though we updated mock data).
-- Ensure `pnpm build` is run from the root to build packages in the correct order (schemas first).
+- The "Mock Client" in `packages/database` is a temporary bridge. Long-term, we need a proper `sqlite-wasm` driver or a real HTTP connection to a pervasive backend.
+- When working on Auth, consider how `apps/core` will authenticate against the future backend.

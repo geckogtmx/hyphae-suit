@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { seedClientDatabase } from './lib/clientSeed';
+import { SuppliersView } from './views/SuppliersView';
+import { InventoryView } from './views/InventoryView';
+import { RecipesView } from './views/RecipesView';
+
 import {
    LayoutDashboard,
    UtensilsCrossed,
@@ -139,34 +144,43 @@ const RECIPE_MOCK_DATA: Recipe[] = [
    {
       productId: 'item_compiler',
       name: 'The Compiler Recipe',
+      type: 'ASSEMBLY',
+      yieldQuantity: 1,
+      yieldUnit: 'unit',
       stationId: 'station_grill',
       cookTimeSeconds: 240,
       activePrepTimeSeconds: 45,
       volumetricScore: 4,
       components: [
-         { inventoryId: 'inv_beef', quantity: 0.140, unit: 'kg' },
-         { inventoryId: 'inv_bun', quantity: 1, unit: 'pcs' },
-         { inventoryId: 'inv_cheese', quantity: 2, unit: 'slices' },
-         { inventoryId: 'inv_sauce_house', quantity: 0.030, unit: 'kg' }
+         { inventoryItemId: 'inv_beef', quantity: 0.140, unit: 'kg' },
+         { inventoryItemId: 'inv_bun', quantity: 1, unit: 'pcs' },
+         { inventoryItemId: 'inv_cheese', quantity: 2, unit: 'slices' },
+         { inventoryItemId: 'inv_sauce_house', quantity: 0.030, unit: 'kg' }
       ]
    },
    {
       productId: 'item_recursive',
       name: 'Recursive Onion Recipe',
+      type: 'ASSEMBLY',
+      yieldQuantity: 1,
+      yieldUnit: 'unit',
       stationId: 'station_grill',
       cookTimeSeconds: 300,
       activePrepTimeSeconds: 60,
       volumetricScore: 5,
       components: [
-         { inventoryId: 'inv_beef', quantity: 0.100, unit: 'kg' },
-         { inventoryId: 'inv_onion', quantity: 0.080, unit: 'kg' },
-         { inventoryId: 'inv_bun', quantity: 1, unit: 'pcs' },
-         { inventoryId: 'inv_cheese', quantity: 1, unit: 'slices' }
+         { inventoryItemId: 'inv_beef', quantity: 0.100, unit: 'kg' },
+         { inventoryItemId: 'inv_onion', quantity: 0.080, unit: 'kg' },
+         { inventoryItemId: 'inv_bun', quantity: 1, unit: 'pcs' },
+         { inventoryItemId: 'inv_cheese', quantity: 1, unit: 'slices' }
       ]
    },
    {
       productId: 'item_sweet_fries',
       name: 'Sweet Potato Fry Recipe',
+      type: 'ASSEMBLY',
+      yieldQuantity: 1,
+      yieldUnit: 'unit',
       stationId: 'station_fryer',
       cookTimeSeconds: 180,
       activePrepTimeSeconds: 15,
@@ -248,12 +262,18 @@ const NavigationHeader = ({
    setView: (v: string) => void,
    onlineCount: number
 }) => {
+   // ... other code ...
+
+   // ... other code ...
+
    const items = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dash' },
       { id: 'intelligence', icon: Brain, label: 'AI Hub' },
       { id: 'finance', icon: Scale, label: 'Finance' },
       { id: 'products', icon: UtensilsCrossed, label: 'Product Config' },
+      { id: 'kitchen', icon: ChefHat, label: 'Recipes' }, // New
       { id: 'inventory', icon: Package, label: 'Stock' },
+      { id: 'suppliers', icon: Truck, label: 'Supply Chain' }, // New
       { id: 'devices', icon: Server, label: 'Fleet' },
    ];
 
@@ -321,6 +341,11 @@ const DashboardView = ({
 }) => {
    const lowStockItems = InventoryService.getLowStockItems(inventory);
    const [alertsCollapsed, setAlertsCollapsed] = useState(false);
+
+   useEffect(() => {
+      // Seed the client-side DB for browser testing
+      seedClientDatabase().then(() => console.log('Client DB Ready'));
+   }, []);
 
    return (
       <div className="p-6 pt-24 pb-12 max-w-[1600px] mx-auto min-h-screen">
@@ -747,48 +772,7 @@ const ProductConfigView = ({
    );
 };
 
-const InventoryView = ({ inventory }: { inventory: InventoryItem[] }) => (
-   <GlassViewWrapper title="Inventory Core" icon={Package}>
-      <div className="overflow-x-auto">
-         <table className="w-full text-left text-sm text-gray-300">
-            <thead className="bg-white/5 text-gray-500 font-mono text-xs uppercase">
-               <tr>
-                  <th className="p-4">Item Name</th>
-                  <th className="p-4">State</th>
-                  <th className="p-4">Stock</th>
-                  <th className="p-4">Value</th>
-                  <th className="p-4 text-right">Status</th>
-               </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-               {inventory.map(item => (
-                  <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                     <td className="p-4 font-medium text-white">{item.name}</td>
-                     <td className="p-4">
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded border ${item.state === 'RAW' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
-                           {item.state}
-                        </span>
-                     </td>
-                     <td className="p-4 font-mono">
-                        {item.currentStock} <span className="text-gray-600">{item.stockUnit}</span>
-                     </td>
-                     <td className="p-4 font-mono text-gray-400">
-                        ${(item.currentStock * item.costPerUnit).toFixed(2)}
-                     </td>
-                     <td className="p-4 text-right">
-                        {item.currentStock <= (item.parLevel || 0) ? (
-                           <span className="inline-flex items-center px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20">LOW</span>
-                        ) : (
-                           <span className="inline-flex items-center px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/10">OK</span>
-                        )}
-                     </td>
-                  </tr>
-               ))}
-            </tbody>
-         </table>
-      </div>
-   </GlassViewWrapper>
-);
+// InventoryView moved to ./views/InventoryView.tsx
 
 const DevicesView = ({ devices }: { devices: DeviceState[] }) => (
    <GlassViewWrapper title="Device Fleet" icon={Server}>

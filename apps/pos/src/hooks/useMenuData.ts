@@ -16,6 +16,7 @@ import {
   RECIPES,
   LOYALTY_TIERS,
 } from '../data/mock_data';
+import { MenuRepository } from '../repositories/MenuRepository';
 
 const API_URL = 'http://localhost:3001';
 
@@ -42,10 +43,16 @@ const fetchCategories = async (): Promise<Category[]> => {
 
 const fetchProducts = async (): Promise<Product[]> => {
   try {
-    const res = await fetch(`${API_URL}/products`);
-    if (!res.ok) return PRODUCTS;
-    return res.json();
-  } catch {
+    const repo = new MenuRepository();
+    const products = await repo.getProducts();
+    // Fallback to MOCK if DB empty? No, we seeded.
+    if (products.length === 0) {
+      console.warn('DB Empty, falling back to mock (for safety)');
+      return PRODUCTS;
+    }
+    return products;
+  } catch (err) {
+    console.error('Failed to fetch from DB:', err);
     return PRODUCTS;
   }
 };
