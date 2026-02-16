@@ -559,22 +559,27 @@ const IntelligenceView = () => {
             </div>
 
             {/* Chat Interface */}
-            <div className="lg:col-span-2 flex flex-col bg-black/40">
-               <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+            <div className="lg:col-span-2 flex flex-col bg-black/40 h-full overflow-hidden relative">
+               <div className="flex-1 p-6 space-y-4 overflow-y-auto min-h-0 scroll-smooth" id="chat-scroll-container">
                   {messages.map((m, i) => (
                      <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[80%] p-4 rounded-2xl ${m.role === 'user' ? 'bg-brand/20 text-brand-glow border border-brand/20' : 'bg-white/5 text-gray-300 border border-white/5'}`}>
                            <div className="text-[10px] font-mono opacity-50 mb-1 uppercase">{m.role}</div>
-                           {m.text}
+                           {m.text.split('\n').map((line, l) => (
+                              <div key={l} className={l > 0 ? 'mt-1' : ''}>{line}</div>
+                           ))}
                         </div>
                      </div>
                   ))}
+                  {/* Invisible anchor for auto-scroll */}
+                  <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
                </div>
-               <div className="p-4 border-t border-white/10 bg-white/5">
+               <div className="p-4 border-t border-white/10 bg-white/5 shrink-0 z-10">
                   <div className="flex gap-2">
                      <input
                         value={input}
                         onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSend()}
                         className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand/50 font-mono text-sm"
                         placeholder="Query Vector Database..."
                      />
@@ -583,12 +588,19 @@ const IntelligenceView = () => {
                      </button>
                   </div>
                </div>
-               <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end">
+               <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end shrink-0 z-10">
                   <button
                      onClick={async () => {
                         setMessages(prev => [...prev, { role: 'user', text: "Run Strategic Analysis" }]);
                         try {
-                           const report = await ApiClient.analyzePerformance([], []);
+                           const report = await ApiClient.analyzePerformance(
+                              // Using local mock transactions and products for demo
+                              [
+                                 { id: 't1', total: 120.00, items: [{ name: 'Spicy Chicken', price: 120 }] },
+                                 { id: 't2', total: 65.00, items: [{ name: 'Fries', price: 65 }] }
+                              ],
+                              MOCK_DATA.products
+                           );
                            setMessages(prev => [...prev, { role: 'agent', text: typeof report === 'string' ? report : JSON.stringify(report) }]);
                         } catch (e) {
                            setMessages(prev => [...prev, { role: 'agent', text: "Analysis Failed: Backend unavailable." }]);

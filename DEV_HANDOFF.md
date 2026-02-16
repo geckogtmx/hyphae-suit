@@ -17,50 +17,47 @@
   - Implemented secure Gemini integration (server-side only).
   - Added endpoints: `/api/analyze` (Strategic Analysis) and `/api/kitchen-note` (Shorthand).
   - Validated inputs with Zod schemas.
+  - **VERIFIED**: Real Gemini API response confirmed in Core UI.
 - **Client Integration (`apps/core`)**:
   - Created `apps/core/lib/apiClient.ts` to consume the new proxy.
   - Added "AUTO-ANALYZE" button to `IntelligenceView` in `App.tsx` for verification.
-- **Configuration Fixes**:
-  - Removed explicit `types` array from `packages/database/tsconfig.json` to fix type resolution.
-  - Added `src/vite-env.d.ts` to `packages/database` for explicit `vite/client` inclusion.
-  - Installed `@types/node` in `apps/api` and `packages/database`.
-- **Documentation**:
-  - Updated `DEVELOPMENT_PLAN.md` (marked security tasks complete).
-  - Created `walkthrough_backend_proxy.md`.
+  - Implemented secure `x-api-key` injection.
+  - **VERIFIED**: Real Gemini API response confirmed in Core UI.
+- **POS Preparation (`apps/pos`)**:
+  - Created `AuthService.ts` stub for future login integration.
+  - Updated `server.ts` prompt for strict kitchen ticket formatting.
 
 ## ⚠️ Known Issues / Broken
 
-- **Service Execution**: `apps/api` must be running for `apps/core` AI features to work.
-  - Command: `pnpm --filter @hyphae/api dev` (or `node apps/api/dist/server.js` after build).
-- **Security**:
-  - `apps/api` CORS is open (`*`).
-  - No authentication on API endpoints yet.
+- **POS Integration**: The POS functionality is currently stubbed (Auth) but the UI is not yet wired to use it.
+- **Database**: `better-sqlite3` is used in some parts, while others use `libsql` client. Migration to full LibSQL instance is pending.
 
 ## 🔄 In Progress / Pending
 
-- [ ] Add `apps/api` to the main `dev` script in `package.json` (root) for concurrent running.
-- [ ] Implement robust error handling in `ApiClient` (currently alerts/logs).
-- [ ] Add Authentication to `apps/api`.
+- [ ] **Wire POS Login**: Connect `LoginView` in `apps/pos` to `AuthService`.
+- [ ] **POS API Client**: Create `apps/pos/src/lib/apiClient.ts`.
+- [ ] **Send Order**: Implement "Send to Kitchen" button in POS.
 
 ## 📋 Instructions for Next Model
 
-1.  **Run the API**: Ensure `apps/api` is running when testing `apps/core`.
-2.  **Verify**: Click "AUTO-ANALYZE" in the "AI Hub" (IntelligenceView) of Core to test the full loop.
-3.  **Refine**: Tighten CORS and add API key/auth protection to the backend endpoints.
+1. **Wire POS Login**: Start by updating `apps/pos/src/views/LoginView.tsx` (or equivalent) to use the new `AuthService`.
+2. **Implement POS Client**: Create the API client for POS to talk to `apps/api` on port 3001.
+3. **Connect Kitchen Display**: Use the `api/kitchen-note` endpoint to simulate sending orders to the kitchen.
 
 ### Context Needed
-- `apps/api/src/server.ts`: The new backend logic.
-- `apps/core/lib/apiClient.ts`: The client-side bridge.
+- `apps/pos/src/services/AuthService.ts`: The stub you need to integrate.
+- `apps/core/lib/apiClient.ts`: Reference implementation for the API client.
+- `TASKS.md`: The immediate task list.
 
 ---
 
 ## Session Log (Last 3 Sessions)
 
-### 2026-02-15 - Gemini (Antigravity)
-- Implemented `apps/api` backend proxy for Gemini.
-- Removed client-side API keys from Core and POS.
-- Setup `ApiClient` in Core and wired up "Auto-Analyze" button.
-- Verified build of `apps/api`.
+### 2026-02-15 - Gemini (Antigravity) - Session 2
+- **Verified** real Gemini API connection via `apps/core` (Auto-Analyze).
+- **Prepared** `apps/pos` with `AuthService` stub and `server.ts` prompt for kitchen notes.
+- **Fixed** port conflicts (Core:5173, POS:5174, BOH:5175, API:3001).
+
 
 ### 2026-02-12 - AI Assistant (Antigravity)
 - Integrated `apps/core` with `@hyphae/database`.
