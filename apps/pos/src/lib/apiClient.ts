@@ -72,8 +72,15 @@ export const ApiClient = {
 
     async getKitchenStatus() {
         try {
-            const response = await fetch(`${API_BASE_URL}/kitchen-status`);
-            if (!response.ok) return {};
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+
+            const response = await fetch(`${API_BASE_URL}/kitchen-status`, { headers });
+
+            if (!response.ok) {
+                console.warn('Kitchen Status Poll: API Error', response.status);
+                return {};
+            }
             return await response.json();
         } catch (error) {
             console.error('Kitchen Status Poll Failed', error);

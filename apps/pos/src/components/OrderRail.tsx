@@ -176,12 +176,13 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
 
     const pollInterval = setInterval(async () => {
       const statusMap = await ApiClient.getKitchenStatus();
+      console.debug('[OrderRail] KDS Status Map size:', Object.keys(statusMap).length); // Log the size of the status map
 
       // Check active kitchen orders
       cookingOrders.forEach(order => {
         const remoteStatus = statusMap[order.id];
         if (remoteStatus === 'completed') {
-          console.log(`[OrderRail] Order ${order.id} completed by KDS. Updating...`);
+          console.log(`[OrderRail] Order ${order.id} COMPLETED by KDS. Auto-Updating to Ready.`);
           dispatch({
             type: 'UPDATE_ORDER',
             payload: { ...order, status: 'Ready', readyAt: Date.now() }

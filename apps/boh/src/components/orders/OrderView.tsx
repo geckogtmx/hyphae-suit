@@ -95,18 +95,63 @@ export function OrderView() {
 
                                     {ticket.orderDetails ? (
                                         <div className="space-y-4 border-t border-jet-700 pt-3">
-                                            {ticket.orderDetails.items.map((item: any, i: number) => (
-                                                <div key={i}>
-                                                    <div className="flex justify-between font-bold text-lg text-white">
-                                                        <span>{item.qty || 1}x {item.name}</span>
+                                            {ticket.orderDetails.items.map((item: any, i: number) => {
+                                                // --- GROUPING LOGIC ---
+                                                // Split modifiers into "Main" and "Sub-Items" (like Fries/Drinks in a Combo)
+                                                // This visual hack separates "Large Fries" into its own heading if it appears in modifiers.
+
+                                                const groups: { name: string; qty: number; mods: any[] }[] = [];
+                                                let currentGroup = { name: `${item.qty || 1}x ${item.name}`, qty: item.qty || 1, mods: [] as any[] };
+
+                                                (item.selectedModifiers || []).forEach((mod: any) => {
+                                                    const upperName = mod.name.toUpperCase();
+                                                    // Heuristic: Promote these keywords to Heading status
+                                                    if (upperName.includes('FRIES') || upperName.includes('TOTS') || upperName.includes('RINGS') || upperName.includes('SHAKE') || upperName.includes('DRINK') || upperName.includes('SODA')) {
+                                                        // Push previous group
+                                                        groups.push(currentGroup);
+                                                        // Start new group (inherit qty 1 for now, or match item qty?)
+                                                        // Usually sides match item qty in a combo
+                                                        currentGroup = { name: `1x ${mod.name}`, qty: 1, mods: [] };
+                                                    } else {
+                                                        currentGroup.mods.push(mod);
+                                                    }
+                                                });
+                                                // Push final group
+                                                groups.push(currentGroup);
+
+                                                return (
+                                                    <div key={i} className="pb-4 border-b border-jet-700 last:border-0 last:pb-0">
+                                                        {groups.map((group, gIdx) => (
+                                                            <div key={gIdx} className={gIdx > 0 ? "mt-4 pt-2 border-t border-jet-800 border-dashed" : ""}>
+                                                                <div className="flex justify-between font-bold text-lg text-white mb-1">
+                                                                    <span>{group.name}</span>
+                                                                </div>
+                                                                {group.mods.length > 0 && (
+                                                                    <div className="pl-3 space-y-1">
+                                                                        {group.mods.map((mod: any, j: number) => {
+                                                                            const variation = mod.variation && mod.variation !== 'Normal' ? mod.variation : '';
+                                                                            let prefixColor = 'text-teal-bright';
+                                                                            if (variation === 'No') prefixColor = 'text-red-400';
+                                                                            if (variation === 'Extra') prefixColor = 'text-lime-400';
+                                                                            if (variation === 'Side') prefixColor = 'text-blue-400'; // Added Side color
+
+                                                                            return (
+                                                                                <div key={j} className="text-sm uppercase font-mono font-bold flex items-start">
+                                                                                    <span className="text-teal-dim mr-1">+</span>
+                                                                                    {variation && (
+                                                                                        <span className={`${prefixColor} mr-1`}>{variation}</span>
+                                                                                    )}
+                                                                                    <span className="text-gray-300">{mod.name}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                    {item.selectedModifiers && item.selectedModifiers.map((mod: any, j: number) => (
-                                                        <div key={j} className="text-sm text-teal-bright ml-4 uppercase font-mono">
-                                                            + {mod.name}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="text-3xl font-black text-white tracking-tight font-mono mb-4">
