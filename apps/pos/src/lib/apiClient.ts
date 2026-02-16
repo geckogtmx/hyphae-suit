@@ -40,7 +40,7 @@ export const ApiClient = {
         }
     },
 
-    async generateKitchenNote(productName: string) {
+    async generateKitchenNote(payload: string | any) {
         try {
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
@@ -49,10 +49,15 @@ export const ApiClient = {
                 headers['x-api-key'] = API_KEY;
             }
 
+            // Determine payload structure
+            const body = typeof payload === 'string'
+                ? { productName: payload }
+                : { productName: `Order #${payload.id}`, orderDetails: payload };
+
             const response = await fetch(`${API_BASE_URL}/kitchen-note`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ productName }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) throw new Error('API Error');
@@ -60,7 +65,19 @@ export const ApiClient = {
             return data.result;
         } catch (error) {
             console.error('Kitchen Note Failed', error);
-            return productName.substring(0, 10); // Fallback
+            // Fallback for string or object
+            return typeof payload === 'string' ? payload.substring(0, 10) : "Offline Ticket";
+        }
+    },
+
+    async getKitchenStatus() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/kitchen-status`);
+            if (!response.ok) return {};
+            return await response.json();
+        } catch (error) {
+            console.error('Kitchen Status Poll Failed', error);
+            return {};
         }
     }
 };

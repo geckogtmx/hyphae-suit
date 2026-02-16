@@ -8,6 +8,7 @@ interface KitchenTicket {
     note: string;
     timestamp: number;
     status: 'pending' | 'completed';
+    orderDetails?: any;
 }
 
 export function OrderView() {
@@ -86,11 +87,32 @@ export function OrderView() {
                                 <div>
                                     <Badge variant="warning" className="mb-2">NEW</Badge>
                                     <h3 className="text-3xl font-black text-white tracking-tight font-mono">
-                                        {ticket.note}
+                                        #{ticket.orderDetails?.id || ticket.note.substring(0, 4)}
                                     </h3>
-                                    <div className="text-gray-400 text-sm mt-1 truncate max-w-[200px]" title={ticket.productName}>
-                                        {ticket.productName}
+                                    <div className="text-gray-400 text-sm mt-1 mb-3">
+                                        {ticket.orderDetails?.table || ticket.productName}
                                     </div>
+
+                                    {ticket.orderDetails ? (
+                                        <div className="space-y-4 border-t border-jet-700 pt-3">
+                                            {ticket.orderDetails.items.map((item: any, i: number) => (
+                                                <div key={i}>
+                                                    <div className="flex justify-between font-bold text-lg text-white">
+                                                        <span>{item.qty || 1}x {item.name}</span>
+                                                    </div>
+                                                    {item.selectedModifiers && item.selectedModifiers.map((mod: any, j: number) => (
+                                                        <div key={j} className="text-sm text-teal-bright ml-4 uppercase font-mono">
+                                                            + {mod.name}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-3xl font-black text-white tracking-tight font-mono mb-4">
+                                            {ticket.note}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="text-xs font-mono text-gray-500 bg-jet-800 px-2 py-1 rounded">
                                     {new Date(ticket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

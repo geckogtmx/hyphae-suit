@@ -35,15 +35,13 @@
 
 - [x] **BOH Display**: Implemented `apps/boh` **KDS View** to receive/display notes.
 - [ ] **Database Seeding**: Populate `packages/database` with robust mock data for "Analysis".
-- [ ] **Structured Orders**: Update `apps/api` and clients to handle structured Kitchen Tickets (not just notes).
-
+- [x] **Structured Orders**: Update `apps/api` and clients to handle structured Kitchen Tickets (not just notes).
+  - *Context*: API now accepts full order object. Added idempotency to prevent duplicate tickets on retry.
 ## 📋 Instructions for Next Model
 
 1.  **Persistence**: Implement session persistence in `apps/pos/src/App.tsx` (restoring auth state on reload).
-2.  **Order Sync**: Ensure synchronization between `apps/pos` and `apps/boh` for order status updates (bi-directional).
-3.  **Analysis Data**: Create realistic mock transaction data in `@hyphae/database` to test the "Auto-Analyze" feature fully.
-
-### Context Needed
+2.  **Database Seeding**: Populate `packages/database` with robust mock data for "Analysis".
+3.  **Realtime Sync**: Consider replacing current polling with WebSockets (Socket.io) for instant updates.
 - `apps/pos/src/App.tsx`: Auth flow entry point.
 - `apps/pos/src/lib/apiClient.ts`: API interaction.
 - `apps/api`: Backend service receiving notes.

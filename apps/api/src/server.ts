@@ -110,13 +110,17 @@ interface KitchenTicket {
     note: string;
     timestamp: number;
     status: 'pending' | 'completed';
+    orderDetails?: any; // Full SavedOrder object
 }
 
 const kitchenQueue: KitchenTicket[] = [];
 
 server.post('/api/kitchen-note', async (request, reply) => {
     try {
-        const { productName } = KitchenNotePayloadSchema.parse(request.body);
+        // Allow richer payload: either just productName (legacy) or full structure
+        const body = request.body as any;
+        const productName = body.productName || "Unknown Order";
+        const orderDetails = body.orderDetails || null;
 
         const prompt = `
       You are a kitchen expediter.
@@ -149,13 +153,29 @@ server.post('/api/kitchen-note', async (request, reply) => {
             note = productName.substring(0, 15).toUpperCase();
         }
 
+        // --- IDEMPOTENCY CHECK ---
+        // If a ticket for this Order ID already exists and is pending, don't create a new one.
+        // This prevents duplicates if the POS retries or "Resends".
+        if (orderDetails && orderDetails.id) {
+            const existingTicket = kitchenQueue.find(
+                t => t.status === 'pending' && t.orderDetails?.id === orderDetails.id
+            );
+
+            if (existingTicket) {
+                // Update note if changed? For now, just return existing to be safe.
+                request.log.info(`Idempotency: Returned existing ticket ${existingTicket.id} for Order ${orderDetails.id}`);
+                return { result: existingTicket.note, ticketId: existingTicket.id };
+            }
+        }
+
         // --- PERSISTENCE ---
         const ticket: KitchenTicket = {
             id: `kt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
             productName,
             note,
             timestamp: Date.now(),
-            status: 'pending'
+            status: 'pending',
+            orderDetails // Store the full object
         };
         kitchenQueue.push(ticket);
 
@@ -165,18 +185,28 @@ server.post('/api/kitchen-note', async (request, reply) => {
         return { result: note, ticketId: ticket.id };
 
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            reply.code(400).send({ error: "Validation Error", details: error.errors });
-        } else {
-            request.log.error(error);
-            reply.code(500).send({ error: "Internal Server Error" });
-        }
+        request.log.error(error);
+        reply.code(500).send({ error: "Internal Server Error" });
     }
 });
 
 server.get('/api/kitchen-queue', async (request, reply) => {
     // Return only pending
     return kitchenQueue.filter(t => t.status === 'pending').sort((a, b) => b.timestamp - a.timestamp);
+});
+
+server.get('/api/kitchen-status', async (request, reply) => {
+    // Return status of all tickets in memory
+    // Map orderId -> status
+    const statusMap: Record<string, string> = {};
+    kitchenQueue.forEach(t => {
+        // If ticket was created with a full order object, use that ID. Otherwise try to parse or fallback.
+        const orderId = t.orderDetails?.id;
+        if (orderId) {
+            statusMap[orderId] = t.status;
+        }
+    });
+    return statusMap;
 });
 
 server.post('/api/kitchen-queue/:id/complete', async (request, reply) => {

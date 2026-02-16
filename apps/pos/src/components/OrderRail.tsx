@@ -18,6 +18,8 @@ import {
   CheckCircle,
   ChefHat,
   Edit,
+  RefreshCw,
+  Unlock,
 } from 'lucide-react';
 import LiveTimer from './LiveTimer';
 import CompletionModal from './CompletionModal';
@@ -83,9 +85,8 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
 
         if (newStatus === 'Kitchen' && state.useExternalKDS === true) {
           console.log('[OrderRail] Sending Kitchen Note...');
-          const itemsList = order.items.map(i => i.name).join(', ');
-          // Fire and forget, or show toast
-          ApiClient.generateKitchenNote(`Order #${order.id}: ${itemsList}`)
+          // Send FULL ORDER object
+          ApiClient.generateKitchenNote(order)
             .then(res => console.log('Kitchen Note Sent:', res))
             .catch(err => console.error('Kitchen Note Error:', err));
         } else if (newStatus === 'Kitchen') {
@@ -168,6 +169,30 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
     if (t.includes('gold')) return 'VIP-4';
     return 'VIP';
   };
+
+  // --- KDS POLLING ---
+  React.useEffect(() => {
+    if (!state.useExternalKDS) return;
+
+    const pollInterval = setInterval(async () => {
+      const statusMap = await ApiClient.getKitchenStatus();
+
+      // Check active kitchen orders
+      cookingOrders.forEach(order => {
+        const remoteStatus = statusMap[order.id];
+        if (remoteStatus === 'completed') {
+          console.log(`[OrderRail] Order ${order.id} completed by KDS. Updating...`);
+          dispatch({
+            type: 'UPDATE_ORDER',
+            payload: { ...order, status: 'Ready', readyAt: Date.now() }
+          });
+        }
+      });
+    }, 3000); // Check every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [state.useExternalKDS, cookingOrders, dispatch]);
+
 
   const renderOrderItems = (order: SavedOrder) => (
     <div className="space-y-2 mb-3 border-t border-zinc-200 dark:border-zinc-800 pt-2 animate-in slide-in-from-top-1">
@@ -258,7 +283,10 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
             </div>
             <div className="p-2 space-y-2 pb-4">
               {readyOrders.map((order) => {
+                // Ensure we don't accidentally expand/collapse when clicking buttons
                 const isExpanded = expandedOrderIds.has(order.id);
+                const handleExpandClick = (e: React.MouseEvent) => toggleOrderExpand(order.id, e);
+
                 return (
                   <div
                     key={order.id}
@@ -266,7 +294,7 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
                   >
                     <div
                       className="flex justify-between items-start mb-2 cursor-pointer"
-                      onClick={(e) => toggleOrderExpand(order.id, e)}
+                      onClick={handleExpandClick}
                     >
                       <div className="flex items-center">
                         <div className="mr-2 text-zinc-400">
@@ -325,6 +353,7 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
             <div className="p-2 space-y-2 pb-4">
               {cookingOrders.map((order) => {
                 const isExpanded = expandedOrderIds.has(order.id);
+                // Define handle function here to avoid scope issues in loop if needed, though usually fine
                 return (
                   <div
                     key={order.id}
@@ -363,12 +392,49 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
                       </div>
                     </div>
                     {isExpanded && renderOrderItems(order)}
-                    <button
-                      onClick={() => handleStatusUpdate(order, 'Ready')}
-                      className="w-full py-3 bg-lime-500 hover:bg-lime-400 rounded-lg text-xs font-bold uppercase text-zinc-950 flex items-center justify-center shadow-lg shadow-lime-500/20"
-                    >
-                      <Bell size={16} className="mr-2" /> ORDER READY
-                    </button>
+
+                    {/* BUTTON LOGIC: External vs Internal KDS */}
+                    {state.useExternalKDS ? (
+                      <div className="space-y-1">
+                        <button
+                          disabled
+                          className="w-full py-3 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500 rounded-lg text-xs font-bold uppercase flex items-center justify-center cursor-not-allowed border border-dashed border-zinc-300 dark:border-zinc-700"
+                        >
+                          <ChefHat size={16} className="mr-2 animate-pulse" /> KITCHEN WORKING...
+                        </button>
+
+                        {/* Recovery Actions for Stuck/Lost Orders */}
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              ApiClient.generateKitchenNote(order);
+                            }}
+                            className="flex-1 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded text-[10px] font-bold uppercase flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                            title="Resend Ticket to Kitchen"
+                          >
+                            <RefreshCw size={12} className="mr-1" /> Resend
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusUpdate(order, 'Ready');
+                            }}
+                            className="flex-1 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-[10px] font-bold uppercase flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/40"
+                            title="Force Ready (Bypass KDS)"
+                          >
+                            <Unlock size={12} className="mr-1" /> Force Ready
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleStatusUpdate(order, 'Ready')}
+                        className="w-full py-3 bg-lime-500 hover:bg-lime-400 rounded-lg text-xs font-bold uppercase text-zinc-950 flex items-center justify-center shadow-lg shadow-lime-500/20"
+                      >
+                        <Bell size={16} className="mr-2" /> ORDER READY
+                      </button>
+                    )}
                   </div>
                 );
               })}
