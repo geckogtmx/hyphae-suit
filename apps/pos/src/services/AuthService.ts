@@ -8,6 +8,8 @@ export interface AuthResult {
     error?: string;
 }
 
+const SESSION_KEY = 'hyphae_pos_session';
+
 export const AuthService = {
     /**
      * Authenticate staff using PIN.
@@ -22,14 +24,21 @@ export const AuthService = {
         }
 
         // MOCK: Accept any 4-digit PIN, assign 'Manager' role for now
-        return {
-            success: true,
+        const session = {
             token: 'mock-jwt-token-12345',
             staff: {
                 id: 'staff-001',
                 name: 'Shift Lead',
-                role: 'Manager'
+                role: 'Manager' as const
             }
+        };
+
+        // Persist session
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+        return {
+            success: true,
+            ...session
         };
     },
 
@@ -41,10 +50,24 @@ export const AuthService = {
     },
 
     /**
+     * Retrieve stored session from local storage
+     */
+    getStoredSession(): { token: string, staff: StaffProfile } | null {
+        try {
+            const data = localStorage.getItem(SESSION_KEY);
+            if (!data) return null;
+            return JSON.parse(data);
+        } catch (e) {
+            console.error("Failed to parse session", e);
+            return null;
+        }
+    },
+
+    /**
      * Clear session.
      */
     logout() {
-        // Clear local storage or session state here
+        localStorage.removeItem(SESSION_KEY);
         console.log('User logged out');
     }
 };

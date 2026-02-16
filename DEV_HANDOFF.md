@@ -1,54 +1,53 @@
 # DEV_HANDOFF.md
 
-> **Last Updated:** 2026-02-15
+> **Last Updated:** 2026-02-16
 > **Last Model:** Gemini (Antigravity)
-> **Session Focus:** POS Integration (Login & Kitchen Note)
+> **Session Focus:** POS Persistence & Database Seeding
 
 ---
 
 ## ✅ Completed This Session
 
-- **POS Authentication**:
-  - Created `apps/pos/src/components/LoginScreen.tsx` with PIN pad UI.
-  - **Dark Mode**: Integrated `LoginScreen` with system theme (auto-adapts + manual toggle).
-  - Wired `App.tsx` to block access until authenticated (Auth flow).
-  - Integrated `AuthService` stub (Mocks success with any 4-digit PIN).
-- **POS API Client**:
-  - Created `apps/pos/src/lib/apiClient.ts` mirroring Core's implementation.
-  - Configured `apps/pos/.env` with `VITE_HYPHAE_API_KEY` (Secure Proxy Key).
-  - Removed `GEMINI_API_KEY` from POS environment (Zero-Secret Policy).
-- **Kitchen Integration (Flexible KDS)**:
-  - Added **Cloud Toggle** in Header to control External BOH Sync (`useExternalKDS`).
-  - **Internal KDS**: Always active (local state).
-  - **External KDS**: Only sends API calls to `/api/kitchen-note` if toggle is ON.
-  - Updated `apps/pos/src/components/OrderRail.tsx` to respect this setting.
-  - **Structured Data**: POS now sends full order details (Items, Mods) to BOH.
-  - **Bi-Directional Sync**: POS polls `/api/kitchen-status` to auto-complete orders when BOH finishes them.
-  - **Recovery Controls**: Added "Resend" and "Force Ready" buttons in POS for stuck orders (Manual Override).
-  - **Idempotency**: API handles duplicate requests gracefully.
-  - **VERIFIED**: Build passes (`pnpm build` in `apps/pos`).
-- **Security**:
-  - Ensured `x-api-key` injection in POS client headers.
+- **POS Session Persistence**:
+  - Implemented `localStorage` strategy in `apps/pos/src/services/AuthService.ts`.
+  - Updated `apps/pos/src/App.tsx` (`AppShell`) to check for `usersession` on mount and restore auth state.
+  - Ensures users remain logged in after page refresh.
+- **Logout Functionality**:
+  - Added "Logout" button to `ModalManager` (Settings Menu) in POS.
+  - wired `onLogout` prop through `AppContent` to `AuthService.logout()`.
+- **Database Seeding**:
+  - Created `packages/database/src/seed_orders.ts` to generate robust mock data.
+  - Generates ~1000 orders over the last 30 days with variable daily volume and item variance.
+  - Updated `seed.ts` to execute this generation step.
+  - Run with `pnpm run --filter @hyphae/database db:seed`.
 
 ## ⚠️ Known Issues / Broken
 
 - **Kitchen Note Payload**: Currently sends a simple string string summary. Need to align with `KitchenNotePayloadSchema` if backend requires structured object (current backend accepts string `productName` but we are sending a list).
-- **Auth Persistence**: Login is session-based (React state). Refreshing the page logs you out. Need to implement `localStorage` or session persistence in `AppShell` or `AuthService`.
 
 ## 🔄 In Progress / Pending
 
 - [x] **BOH Display**: Implemented `apps/boh` **KDS View** to receive/display notes.
-- [ ] **Database Seeding**: Populate `packages/database` with robust mock data for "Analysis".
-- [x] **Structured Orders**: Update `apps/api` and clients to handle structured Kitchen Tickets (not just notes).
-  - *Context*: API now accepts full order object. Added idempotency to prevent duplicate tickets on retry.
+- [x] **Database Seeding**: Populate `packages/database` with robust mock data for "Analysis".
+- [x] **Structured Orders**: Update `apps/api` and clients to handle structured Kitchen Tickets.
+- [ ] **Realtime Sync**: Implement WebSockets for instant updates.
+- [ ] **Backend Analysis**: Connect API to seeded DB for real analytics.
+
 ## 📋 Instructions for Next Model
 
-1.  **Persistence**: Implement session persistence in `apps/pos/src/App.tsx` (restoring auth state on reload).
-2.  **Database Seeding**: Populate `packages/database` with robust mock data for "Analysis".
-3.  **Realtime Sync**: Consider replacing current polling with WebSockets (Socket.io) for instant updates.
-- `apps/pos/src/App.tsx`: Auth flow entry point.
-- `apps/pos/src/lib/apiClient.ts`: API interaction.
-- `apps/api`: Backend service receiving notes.
+1. **Realtime Sync**: 
+   - Install `socket.io` in `apps/api` and `socket.io-client` in `apps/pos`/`apps/boh`.
+   - Replace polling mechanism in `ApiClient` with socket listeners.
+   - Ensure Kitchen Display System updates instantly when POS sends order.
+
+2. **Backend Analysis**:
+   - Connect `apps/api/src/server.ts` to `@hyphae/database` (import `db`).
+   - Update `/api/analyze` to fetch real order history from SQLite instead of relying on frontend arguments.
+
+### Key Files
+- `apps/api/src/server.ts`: Backend entry point.
+- `apps/pos/src/lib/apiClient.ts`: POS API wrapper.
+- `packages/database/src/schema.ts`: Database definition.
 
 ---
 

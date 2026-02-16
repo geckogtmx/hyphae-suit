@@ -22,9 +22,13 @@ import { X } from 'lucide-react';
 import Header from './components/layout/Header';
 import ModalManager from './components/layout/ModalManager';
 import LoginScreen from './components/LoginScreen';
+import { AuthService } from './services/AuthService';
 
-const AppContent = () => {
+const AppContent = ({ onLogout }: { onLogout: () => void }) => {
   const { theme, toggleTheme } = useTheme();
+  // ... (rest of the state hooks are fine)
+
+  // (Keeping all existing state and logic)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -194,6 +198,7 @@ const AppContent = () => {
         concepts={concepts}
         setActiveConceptId={setActiveConceptId}
         activeConceptId={activeConceptId}
+        onLogout={onLogout}
       />
     </div>
   );
@@ -206,9 +211,14 @@ const AppShell = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Auto-login for dev convenience if needed, or stick to strict auth
+  // Auto-login from persisted session
   useEffect(() => {
-    // Optional: Check validated session in local storage
+    const savedSession = AuthService.getStoredSession();
+    if (savedSession && savedSession.token) {
+      console.log("Restoring session:", savedSession.staff);
+      setCurrentUser(savedSession.staff);
+      setIsAuthenticated(true);
+    }
   }, []);
 
   const handleLoginSuccess = (staff: any) => {
@@ -217,11 +227,17 @@ const AppShell = () => {
     setIsAuthenticated(true);
   };
 
+  const handleLogout = () => {
+    AuthService.logout();
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+  };
+
   if (!isAuthenticated) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return <AppContent />;
+  return <AppContent onLogout={handleLogout} />;
 };
 
 const App = () => (

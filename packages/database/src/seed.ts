@@ -20,6 +20,7 @@ import {
   PRODUCTS
 } from './mock_data';
 import { eq } from 'drizzle-orm';
+import { generateMockOrders } from './seed_orders';
 
 const seed = async () => {
   console.log('🌱 Starting Supply Chain Seeding...');
@@ -205,6 +206,9 @@ const seed = async () => {
     }
 
     console.log('✅ Supply Chain Seeding Complete!');
+
+    // 8. Generate Historical Orders (For Dashboard/Analysis)
+    await generateMockOrders(30);
 
   } catch (error) {
     console.error('❌ Seeding failed:', error);

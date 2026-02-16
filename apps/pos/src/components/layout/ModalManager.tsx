@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Settings, ChevronRight, AlertCircle } from 'lucide-react';
+import { Settings, ChevronRight, AlertCircle, LogOut } from 'lucide-react';
 import HistoryModal from '../HistoryModal';
 
 interface ModalManagerProps {
@@ -18,6 +18,7 @@ interface ModalManagerProps {
   concepts: any[];
   setActiveConceptId: (id: string) => void;
   activeConceptId: string;
+  onLogout: () => void;
 }
 
 const ModalManager: React.FC<ModalManagerProps> = ({
@@ -28,6 +29,7 @@ const ModalManager: React.FC<ModalManagerProps> = ({
   concepts,
   setActiveConceptId,
   activeConceptId,
+  onLogout,
 }) => {
   if (!activeModal) return null;
 
@@ -41,7 +43,7 @@ const ModalManager: React.FC<ModalManagerProps> = ({
       {activeModal === 'Order History' && <HistoryModal onClose={() => setActiveModal(null)} />}
 
       {activeModal === 'SettingsMenu' && (
-        <div className="relative bg-zinc-50 dark:bg-zinc-900 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl shadow-2xl w-64 animate-in zoom-in-95 duration-100">
+        <div className="relative bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl shadow-2xl w-64 animate-in zoom-in-95 duration-100">
           <div className="flex flex-col space-y-1">
             <button
               onClick={handleSettingsClick}
@@ -67,6 +69,17 @@ const ModalManager: React.FC<ModalManagerProps> = ({
                 />
               </div>
             </button>
+            <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full" />
+            <button
+              onClick={onLogout}
+              className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors flex justify-between items-center group rounded-lg"
+            >
+              <span className="font-bold">Logout</span>
+              <LogOut
+                size={14}
+                className="group-hover:text-red-700 dark:group-hover:text-red-300"
+              />
+            </button>
           </div>
         </div>
       )}
@@ -87,11 +100,10 @@ const ModalManager: React.FC<ModalManagerProps> = ({
                 className={`
                                 w-full py-4 px-6 text-left border rounded-xl transition-all
                                 flex items-center justify-between
-                                ${
-                                  activeConceptId === concept.id
-                                    ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-500 dark:border-lime-400 text-lime-700 dark:text-lime-400'
-                                    : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500'
-                                }
+                                ${activeConceptId === concept.id
+                    ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-500 dark:border-lime-400 text-lime-700 dark:text-lime-400'
+                    : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500'
+                  }
                             `}
               >
                 <span className="font-bold text-lg">{concept.name}</span>
