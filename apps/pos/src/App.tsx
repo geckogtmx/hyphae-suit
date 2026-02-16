@@ -21,6 +21,7 @@ import Screensaver from './components/Screensaver';
 import { X } from 'lucide-react';
 import Header from './components/layout/Header';
 import ModalManager from './components/layout/ModalManager';
+import LoginScreen from './components/LoginScreen';
 
 const AppContent = () => {
   const { theme, toggleTheme } = useTheme();
@@ -198,13 +199,36 @@ const AppContent = () => {
   );
 };
 
+
 const queryClient = new QueryClient();
+
+const AppShell = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Auto-login for dev convenience if needed, or stick to strict auth
+  useEffect(() => {
+    // Optional: Check validated session in local storage
+  }, []);
+
+  const handleLoginSuccess = (staff: any) => {
+    console.log("Logged in as:", staff);
+    setCurrentUser(staff);
+    setIsAuthenticated(true);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  return <AppContent />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <OrderProvider>
-        <AppContent />
+        <AppShell />
       </OrderProvider>
     </ThemeProvider>
   </QueryClientProvider>

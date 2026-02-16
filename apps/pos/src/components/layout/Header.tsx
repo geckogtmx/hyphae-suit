@@ -6,9 +6,9 @@
  * @last-updated 2026-01-20
  */
 
-import React from 'react';
-import { Menu, Sun, Moon, CloudSun, ClipboardList, History, Users, Settings } from 'lucide-react';
+import { Menu, Sun, Moon, CloudSun, ClipboardList, History, Users, Settings, Cloud, CloudOff } from 'lucide-react';
 import CapacityWidget from '../CapacityWidget';
+import { useOrder } from '../../context/OrderContext';
 
 interface HeaderProps {
   isMobile: boolean;
@@ -37,9 +37,11 @@ const Header: React.FC<HeaderProps> = ({
   activeConceptName,
   setIsMobileMenuOpen,
 }) => {
+  const { state, dispatch } = useOrder();
+
   if (isMobile) {
     return (
-      <div className="h-auto min-h-[3.5rem] bg-zinc-50 dark:bg-zinc-900 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 shrink-0 z-50 pt-[env(safe-area-inset-top)]">
+      <div className="h-auto min-h-[3.5rem] bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 shrink-0 z-50 pt-[env(safe-area-inset-top)]">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="p-2 -ml-2 text-lime-600 dark:text-lime-400"
@@ -107,6 +109,15 @@ const Header: React.FC<HeaderProps> = ({
 
         {/* ICON GROUP WITH EVEN SPACING */}
         <div className="flex items-center gap-2">
+          {/* EXTERNAL KDS TOGGLE */}
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_EXTERNAL_KDS' })}
+            className={`h-9 w-16 flex items-center justify-center rounded-xl transition-all border ${state.useExternalKDS ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-600 border-transparent hover:bg-zinc-200 dark:hover:bg-zinc-800'}`}
+            title={state.useExternalKDS ? "External KDS Active" : "Local Logic Only"}
+          >
+            {state.useExternalKDS ? <Cloud size={18} /> : <CloudOff size={18} />}
+          </button>
+
           <button
             onClick={toggleTheme}
             className="h-9 w-16 flex items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-lime-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"

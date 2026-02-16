@@ -2,62 +2,65 @@
 
 > **Last Updated:** 2026-02-15
 > **Last Model:** Gemini (Antigravity)
-> **Session Focus:** Security Remediation & Backend Proxy (Gemini API)
+> **Session Focus:** POS Integration (Login & Kitchen Note)
 
 ---
 
 ## ✅ Completed This Session
 
-- **Security Remediation**:
-  - Removed `GEMINI_API_KEY` from `apps/pos/vite.config.ts` and `apps/core/vite.config.ts`.
-  - Deleted `apps/core/lib/gemini.ts` (client-side SDK usage).
-  - Sanitized mock data in `packages/database/src/mock_data.ts` (removed realistic keys).
-- **Backend Proxy (`apps/api`)**:
-  - Created new Fastify service in `apps/api`.
-  - Implemented secure Gemini integration (server-side only).
-  - Added endpoints: `/api/analyze` (Strategic Analysis) and `/api/kitchen-note` (Shorthand).
-  - Validated inputs with Zod schemas.
-  - **VERIFIED**: Real Gemini API response confirmed in Core UI.
-- **Client Integration (`apps/core`)**:
-  - Created `apps/core/lib/apiClient.ts` to consume the new proxy.
-  - Added "AUTO-ANALYZE" button to `IntelligenceView` in `App.tsx` for verification.
-  - Implemented secure `x-api-key` injection.
-  - **VERIFIED**: Real Gemini API response confirmed in Core UI.
-- **POS Preparation (`apps/pos`)**:
-  - Created `AuthService.ts` stub for future login integration.
-  - Updated `server.ts` prompt for strict kitchen ticket formatting.
+- **POS Authentication**:
+  - Created `apps/pos/src/components/LoginScreen.tsx` with PIN pad UI.
+  - **Dark Mode**: Integrated `LoginScreen` with system theme (auto-adapts + manual toggle).
+  - Wired `App.tsx` to block access until authenticated (Auth flow).
+  - Integrated `AuthService` stub (Mocks success with any 4-digit PIN).
+- **POS API Client**:
+  - Created `apps/pos/src/lib/apiClient.ts` mirroring Core's implementation.
+  - Configured `apps/pos/.env` with `VITE_HYPHAE_API_KEY` (Secure Proxy Key).
+  - Removed `GEMINI_API_KEY` from POS environment (Zero-Secret Policy).
+- **Kitchen Integration (Flexible KDS)**:
+  - Added **Cloud Toggle** in Header to control External BOH Sync (`useExternalKDS`).
+  - **Internal KDS**: Always active (local state).
+  - **External KDS**: Only sends API calls to `/api/kitchen-note` if toggle is ON.
+  - Updated `apps/pos/src/components/OrderRail.tsx` to respect this setting.
+  - **VERIFIED**: Build passes (`pnpm build` in `apps/pos`).
+- **Security**:
+  - Ensured `x-api-key` injection in POS client headers.
 
 ## ⚠️ Known Issues / Broken
 
-- **POS Integration**: The POS functionality is currently stubbed (Auth) but the UI is not yet wired to use it.
-- **Database**: `better-sqlite3` is used in some parts, while others use `libsql` client. Migration to full LibSQL instance is pending.
+- **Kitchen Note Payload**: Currently sends a simple string string summary. Need to align with `KitchenNotePayloadSchema` if backend requires structured object (current backend accepts string `productName` but we are sending a list).
+- **Auth Persistence**: Login is session-based (React state). Refreshing the page logs you out. Need to implement `localStorage` or session persistence in `AppShell` or `AuthService`.
 
 ## 🔄 In Progress / Pending
 
-- [ ] **Wire POS Login**: Connect `LoginView` in `apps/pos` to `AuthService`.
-- [ ] **POS API Client**: Create `apps/pos/src/lib/apiClient.ts`.
-- [ ] **Send Order**: Implement "Send to Kitchen" button in POS.
+- [x] **BOH Display**: Implemented `apps/boh` **KDS View** to receive/display notes.
+- [ ] **Database Seeding**: Populate `packages/database` with robust mock data for "Analysis".
+- [ ] **Structured Orders**: Update `apps/api` and clients to handle structured Kitchen Tickets (not just notes).
 
 ## 📋 Instructions for Next Model
 
-1. **Wire POS Login**: Start by updating `apps/pos/src/views/LoginView.tsx` (or equivalent) to use the new `AuthService`.
-2. **Implement POS Client**: Create the API client for POS to talk to `apps/api` on port 3001.
-3. **Connect Kitchen Display**: Use the `api/kitchen-note` endpoint to simulate sending orders to the kitchen.
+1.  **Persistence**: Implement session persistence in `apps/pos/src/App.tsx` (restoring auth state on reload).
+2.  **Order Sync**: Ensure synchronization between `apps/pos` and `apps/boh` for order status updates (bi-directional).
+3.  **Analysis Data**: Create realistic mock transaction data in `@hyphae/database` to test the "Auto-Analyze" feature fully.
 
 ### Context Needed
-- `apps/pos/src/services/AuthService.ts`: The stub you need to integrate.
-- `apps/core/lib/apiClient.ts`: Reference implementation for the API client.
-- `TASKS.md`: The immediate task list.
+- `apps/pos/src/App.tsx`: Auth flow entry point.
+- `apps/pos/src/lib/apiClient.ts`: API interaction.
+- `apps/api`: Backend service receiving notes.
 
 ---
 
 ## Session Log (Last 3 Sessions)
 
+### 2026-02-15 - Gemini (Antigravity) - Session 3 (Current)
+- **Implemented** POS Login Screen and Auth Flow.
+- **Connected** POS to Backend API (Kitchen Note simulation).
+- **Secured** POS environment variables.
+
 ### 2026-02-15 - Gemini (Antigravity) - Session 2
 - **Verified** real Gemini API connection via `apps/core` (Auto-Analyze).
 - **Prepared** `apps/pos` with `AuthService` stub and `server.ts` prompt for kitchen notes.
 - **Fixed** port conflicts (Core:5173, POS:5174, BOH:5175, API:3001).
-
 
 ### 2026-02-12 - AI Assistant (Antigravity)
 - Integrated `apps/core` with `@hyphae/database`.

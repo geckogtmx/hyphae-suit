@@ -4,6 +4,7 @@ import { FlightControl } from './components/flight-control';
 import { InventoryDashboard } from './components/inventory/dashboard';
 import { ReceivingForm } from './components/inventory/receiving';
 // import { RecipesList } from './components/recipes'; // Planning
+import { OrderView } from './components/orders/OrderView';
 
 function App() {
   const [activeRoute, setActiveRoute] = useState<string>('prep');
@@ -14,6 +15,7 @@ function App() {
 
       <main className="pt-16 pb-20 px-4 max-w-7xl mx-auto h-[calc(100vh-80px)] overflow-hidden">
         {activeRoute === 'prep' && <FlightControl />}
+        {activeRoute === 'kds' && <OrderView />}
         {activeRoute === 'inventory' && <InventoryDashboard />}
         {activeRoute === 'receiving' && <div className="p-4 h-full flex items-center justify-center"><ReceivingForm /></div>}
         {activeRoute === 'recipes' && <div className="p-10 text-center text-gray-400">Recipe Library (Coming Phase 2.3)</div>}

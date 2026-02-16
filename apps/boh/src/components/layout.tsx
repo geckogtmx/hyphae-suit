@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ChefHat, Warehouse, BookOpen, Truck, Settings, Clock } from 'lucide-react';
+import { ChefHat, Warehouse, BookOpen, Truck, Settings, Clock, ScrollText } from 'lucide-react';
 import { Button, Badge } from './ui/base';
 
 interface NavigationProps {
@@ -10,6 +10,7 @@ interface NavigationProps {
 export function Navigation({ currentRoute, onNavigate }: NavigationProps) {
     const routes = [
         { id: 'prep', icon: ChefHat, label: 'Prep' },
+        { id: 'kds', icon: ScrollText, label: 'KDS' },
         { id: 'inventory', icon: Warehouse, label: 'Stock' },
         { id: 'recipes', icon: BookOpen, label: 'Recipes' },
         { id: 'receiving', icon: Truck, label: 'Receive' },

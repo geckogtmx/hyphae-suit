@@ -16,7 +16,7 @@ const server = Fastify({
 
 // Configure CORS
 server.register(cors, {
-    origin: ['http://localhost:5173', 'http://localhost:5174'], // Core & POS
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Core, POS, BOH
     methods: ['GET', 'POST'],
 });
 
@@ -103,6 +103,17 @@ server.post('/api/analyze', async (request, reply) => {
     }
 });
 
+// In-memory store for Kitchen Notes (KDS)
+interface KitchenTicket {
+    id: string;
+    productName: string;
+    note: string;
+    timestamp: number;
+    status: 'pending' | 'completed';
+}
+
+const kitchenQueue: KitchenTicket[] = [];
+
 server.post('/api/kitchen-note', async (request, reply) => {
     try {
         const { productName } = KitchenNotePayloadSchema.parse(request.body);
@@ -121,8 +132,8 @@ server.post('/api/kitchen-note', async (request, reply) => {
       Output (just the shorthand text):
     `;
 
+        let note = "";
         try {
-            let note = "";
             if (ai) {
                 const response = await ai.models.generateContent({
                     model: MODEL_FAST,
@@ -131,13 +142,27 @@ server.post('/api/kitchen-note', async (request, reply) => {
                 note = response.text?.trim().toUpperCase().substring(0, 20) || "DBL CHZ BGR";
             } else {
                 // Mock
-                note = "MOCK: Dbl Chz";
+                note = "MOCK: " + productName.substring(0, 10).toUpperCase();
             }
-            return { result: note };
         } catch (apiError) {
             // Fallback
-            return { result: productName.substring(0, 10) };
+            note = productName.substring(0, 15).toUpperCase();
         }
+
+        // --- PERSISTENCE ---
+        const ticket: KitchenTicket = {
+            id: `kt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+            productName,
+            note,
+            timestamp: Date.now(),
+            status: 'pending'
+        };
+        kitchenQueue.push(ticket);
+
+        // Keep queue size manageable for demo
+        if (kitchenQueue.length > 50) kitchenQueue.shift();
+
+        return { result: note, ticketId: ticket.id };
 
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -147,6 +172,21 @@ server.post('/api/kitchen-note', async (request, reply) => {
             reply.code(500).send({ error: "Internal Server Error" });
         }
     }
+});
+
+server.get('/api/kitchen-queue', async (request, reply) => {
+    // Return only pending
+    return kitchenQueue.filter(t => t.status === 'pending').sort((a, b) => b.timestamp - a.timestamp);
+});
+
+server.post('/api/kitchen-queue/:id/complete', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const ticket = kitchenQueue.find(t => t.id === id);
+    if (ticket) {
+        ticket.status = 'completed';
+        return { success: true };
+    }
+    return reply.code(404).send({ error: 'Ticket not found' });
 });
 
 // Start server

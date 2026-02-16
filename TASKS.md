@@ -37,9 +37,15 @@
 - [x] **Kitchen Note**: Refine `kitchen-note` prompt for strict formatting. (Updated `server.ts` prompt)
 
 ### Phase 2: POS Execution (Next Sprint)
-- [ ] **Wire Login UI**: Update POS `LoginView` to use `AuthService.loginWithPin`.
-- [ ] **POS API Client**: Create `apps/pos/src/lib/apiClient.ts` (Mirror of Core).
-- [ ] **Send Order**: Implement "Send to Kitchen" button that POSTs to `/api/kitchen-note` (for testing).
+- [x] **Wire Login UI**: Update POS `LoginView` to use `AuthService.loginWithPin`.
+  - *Context*: Implemented `LoginScreen.tsx` and wired in `App.tsx`.
+- [x] **POS API Client**: Create `apps/pos/src/lib/apiClient.ts` (Mirror of Core).
+  - *Context*: Included secure `x-api-key` injection.
+- [x] **Send Order**: Implement "Send to Kitchen" button that POSTs to `/api/kitchen-note` (for testing).
+  - *Context*: Wired to "Fire" action in `OrderRail.tsx`.
+- [x] **KDS Configuration**: Add toggle to enable/disable external BOH communication.
+  - *Context*: Added `useExternalKDS` state and Header toggle. Local POS KDS always functions.
+  - *Verification*: Enabled `apps/boh` **KDS View** to receive/display orders in real-time.
 
 ### Phase 2: Database
 - [ ] **Seed Data**: Ensure `packages/database` has robust mock data for "Analysis" scenarios.

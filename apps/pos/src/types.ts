@@ -121,6 +121,7 @@ export interface OrderState {
 
   // System State
   currentStaffId?: string;
+  useExternalKDS: boolean;
 }
 
 export type OrderAction =
@@ -140,6 +141,7 @@ export type OrderAction =
   | { type: 'LOAD_ORDER_FOR_EDIT'; payload: SavedOrder }
   | { type: 'CANCEL_EDIT' }
   | { type: 'SET_STAFF'; payload: string } // Login Staff
+  | { type: 'TOGGLE_EXTERNAL_KDS' }
   | {
     type: 'CREATE_ORDER';
     payload: {

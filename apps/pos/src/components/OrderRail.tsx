@@ -23,6 +23,7 @@ import LiveTimer from './LiveTimer';
 import CompletionModal from './CompletionModal';
 import KitchenSummaryModal from './KitchenSummaryModal';
 import AssemblyLineModal from './AssemblyLineModal';
+import { ApiClient } from '../lib/apiClient';
 
 interface OrderRailProps {
   onLayoutChange?: (ratio: number) => void;
@@ -70,15 +71,31 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
   );
   const totalActiveOrders = readyOrders.length + cookingOrders.length + queueOrders.length;
 
+
+
   const handleStatusUpdate = useCallback(
-    (order: SavedOrder, newStatus: string) => {
+    async (order: SavedOrder, newStatus: string) => {
       if (newStatus === 'Completed') {
         setCompletionOrder(order);
       } else {
+        // Send to Kitchen API Simulation (Only if External KDS is enabled)
+        console.log(`[OrderRail] Updating status to: ${newStatus}. External KDS Enabled:`, state.useExternalKDS);
+
+        if (newStatus === 'Kitchen' && state.useExternalKDS === true) {
+          console.log('[OrderRail] Sending Kitchen Note...');
+          const itemsList = order.items.map(i => i.name).join(', ');
+          // Fire and forget, or show toast
+          ApiClient.generateKitchenNote(`Order #${order.id}: ${itemsList}`)
+            .then(res => console.log('Kitchen Note Sent:', res))
+            .catch(err => console.error('Kitchen Note Error:', err));
+        } else if (newStatus === 'Kitchen') {
+          console.log('[OrderRail] External KDS Disabled. Skipping API call.');
+        }
+
         dispatch({ type: 'UPDATE_ORDER', payload: { ...order, status: newStatus as OrderStatus } });
       }
     },
-    [dispatch]
+    [dispatch, state.useExternalKDS]
   );
 
   const finalizeCompletion = useCallback(

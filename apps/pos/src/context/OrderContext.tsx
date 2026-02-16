@@ -36,6 +36,7 @@ const initialState: OrderState = {
   completedOrders: [], // Archive Layer
   editingOrder: null,
   currentStaffId: 'staff_001', // Default Mock Staff
+  useExternalKDS: false,
 };
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -52,6 +53,9 @@ const recalculateCartWithPerks = (
 
 const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
   switch (action.type) {
+    case 'TOGGLE_EXTERNAL_KDS':
+      return { ...state, useExternalKDS: !state.useExternalKDS };
+
     case 'ADD_ITEM': {
       const newItems = [...state.items, action.payload];
       return { ...state, items: recalculateCartWithPerks(newItems, state.loyaltyProfile) };
@@ -424,6 +428,10 @@ export const OrderProvider = ({ children }: OrderProviderProps) => {
           const parsed = JSON.parse(stored);
           // Migration check for old state without completedOrders
           if (!parsed.completedOrders) parsed.completedOrders = [];
+
+          // Migration: Ensure useExternalKDS exists (default to false if undefined)
+          if (parsed.useExternalKDS === undefined) parsed.useExternalKDS = false;
+
           return parsed;
         }
       }
