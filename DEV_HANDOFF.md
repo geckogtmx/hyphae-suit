@@ -22,6 +22,10 @@
   - **Internal KDS**: Always active (local state).
   - **External KDS**: Only sends API calls to `/api/kitchen-note` if toggle is ON.
   - Updated `apps/pos/src/components/OrderRail.tsx` to respect this setting.
+  - **Structured Data**: POS now sends full order details (Items, Mods) to BOH.
+  - **Bi-Directional Sync**: POS polls `/api/kitchen-status` to auto-complete orders when BOH finishes them.
+  - **Recovery Controls**: Added "Resend" and "Force Ready" buttons in POS for stuck orders (Manual Override).
+  - **Idempotency**: API handles duplicate requests gracefully.
   - **VERIFIED**: Build passes (`pnpm build` in `apps/pos`).
 - **Security**:
   - Ensured `x-api-key` injection in POS client headers.
