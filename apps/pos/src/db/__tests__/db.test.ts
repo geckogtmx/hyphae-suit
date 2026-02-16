@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
-import { menuItems, orders } from '../schema';
+import { products as menuItems, orders } from '@hyphae/database';
 import { eq, sql } from 'drizzle-orm';
 
 const testClient = createClient({ url: 'file::memory:' });

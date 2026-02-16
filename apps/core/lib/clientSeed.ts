@@ -28,9 +28,12 @@ export const seedClientDatabase = async () => {
         // Seed Recipes
         for (const recipe of RECIPES) {
             const type = recipe.outputInventoryItemId ? 'BATCH' : 'ASSEMBLY';
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { components, instructions, ...recipeData } = recipe;
             await db.insert(schema.recipes).values({
-                ...recipe,
-                type
+                ...recipeData,
+                type,
+                instructions: Array.isArray(instructions) ? JSON.stringify(instructions) : instructions
             }).onConflictDoNothing();
 
             if (recipe.components) {

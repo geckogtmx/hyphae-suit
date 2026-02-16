@@ -123,7 +123,7 @@ export type StaffRole = 'Manager' | 'Cashier' | 'Kitchen';
 export interface StaffProfile {
     id: string;
     name: string;
-    pin: string; // In real app, hashed
+    // pin: string; // REMOVED: Secure auth required
     role: StaffRole;
 }
 

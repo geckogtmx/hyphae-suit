@@ -8,7 +8,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LoyaltyProfile, LoyaltyCard, LoyaltyTransaction } from '../types';
-import { LOYALTY_PROFILES, LOYALTY_CARDS, LOYALTY_TRANSACTIONS } from '../data/mock_data';
+import { LOYALTY_PROFILES, LOYALTY_CARDS, LOYALTY_TRANSACTIONS } from '@hyphae/database/mock_data';
 
 const API_URL = 'http://localhost:3001';
 

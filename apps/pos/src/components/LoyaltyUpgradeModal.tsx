@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useOrder } from '../context/OrderContext';
 import { Crown, ArrowRight, CreditCard, X, AlertTriangle } from 'lucide-react';
-import { LOYALTY_TIERS } from '../data/mock_data';
+import { LOYALTY_TIERS } from '@hyphae/database/mock_data';
 
 const LoyaltyUpgradeModal = () => {
   const { state, dispatch } = useOrder();

@@ -7,7 +7,7 @@
  */
 
 import { db } from '../db';
-import { orders } from '../db/schema';
+import { orders } from '@hyphae/database';
 import { SavedOrder } from '../types';
 import { IOrderRepository } from './interfaces';
 import { eq, desc, ne } from 'drizzle-orm';

@@ -15,7 +15,7 @@ import {
   INVENTORY_ITEMS,
   RECIPES,
   LOYALTY_TIERS,
-} from '../data/mock_data';
+} from '@hyphae/database/mock_data';
 import { MenuRepository } from '../repositories/MenuRepository';
 
 const API_URL = 'http://localhost:3001';

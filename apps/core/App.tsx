@@ -68,187 +68,27 @@ import {
 import { GeminiService } from './lib/gemini';
 import { InventoryService } from './lib/inventory';
 import { ProductBuilder } from './components/ProductBuilder';
+import {
+   CONCEPTS,
+   CATEGORIES,
+   PRODUCTS,
+   INVENTORY_ITEMS,
+   RECIPES,
+   FINANCIAL_MOCK_DATA,
+   INTEGRATION_MOCK_DATA,
+   FINANCIAL_HEALTH_OVERVIEW as FINANCIAL_HEALTH
+} from '@hyphae/database/mock_data';
 
 // --- MOCK DATA (Code B-Smash) ---
+// --- MOCK DATA (Consolidated) ---
 const MOCK_DATA = {
-   concepts: [
-      { id: 'cbs_01', name: 'Code B-Smash', color: 'orange-500', flowType: 'sequential' }
-   ] as Concept[],
-   categories: [
-      { id: 'cat_burgers', name: 'Smash Burgers', conceptId: 'cbs_01' },
-      { id: 'cat_sides', name: 'Sides', conceptId: 'cbs_01' }
-   ],
-   products: [
-      {
-         id: 'item_compiler',
-         name: 'The Compiler',
-         price: 120.00,
-         categoryId: 'cat_burgers',
-         requiresMods: true,
-         stock: 100,
-         metadata: { kitchenLabel: 'Compiler' },
-         inventoryMetadata: { recipeId: 'recipe_compiler_burger' },
-         active: true,
-         stationId: 'station_grill',
-         timeMetadata: { cookTimeSeconds: 240, activePrepTimeSeconds: 45 },
-         logisticsMetadata: { volumetricScore: 4, requiresContainer: true, packagingDims: [15, 15, 8] },
-         prepBatchSize: 10,
-         costOfGoods: 3.50,
-         recipeText: "1. Portion beef to 70g balls..."
-      },
-      {
-         id: 'item_recursive',
-         name: 'Recursive Onion',
-         price: 110.00,
-         categoryId: 'cat_burgers',
-         requiresMods: true,
-         stock: 50,
-         metadata: { kitchenLabel: 'Rec Onion' },
-         active: true,
-         stationId: 'station_grill',
-         timeMetadata: { cookTimeSeconds: 300, activePrepTimeSeconds: 60 },
-         logisticsMetadata: { volumetricScore: 5, requiresContainer: true, packagingDims: [15, 15, 10] },
-         prepBatchSize: 8,
-         costOfGoods: 2.90,
-         recipeText: "1. Slice onions paper thin..."
-      },
-      {
-         id: 'item_sweet_fries',
-         name: 'Sweet Potato Arrays',
-         price: 65.00,
-         categoryId: 'cat_sides',
-         requiresMods: false,
-         metadata: { kitchenLabel: 'Swt Pot Fry' },
-         inventoryMetadata: { recipeId: 'recipe_sweet_fries' },
-         active: true,
-         stationId: 'station_fryer',
-         timeMetadata: { cookTimeSeconds: 180, activePrepTimeSeconds: 15 },
-         logisticsMetadata: { volumetricScore: 3, requiresContainer: true, packagingDims: [10, 8, 12] },
-         prepBatchSize: 20,
-         costOfGoods: 0.85,
-         recipeText: "1. Cut potatoes into 1/4 inch strips..."
-      }
-   ] as Product[],
-   inventory: [
-      { id: 'inv_beef', name: 'Ground Beef 70/30', stockUnit: 'kg', parLevel: 10, currentStock: 12.5, costPerUnit: 12.50, state: 'RAW' },
-      { id: 'inv_bun', name: 'Tangzhong Buns', stockUnit: 'pcs', parLevel: 24, currentStock: 8, costPerUnit: 0.80, state: 'RAW' },
-      { id: 'inv_cheese', name: 'American Cheese', stockUnit: 'slices', parLevel: 50, currentStock: 45, costPerUnit: 0.20, state: 'RAW' },
-      { id: 'inv_sauce_house', name: 'B-Smash Sauce', stockUnit: 'kg', parLevel: 5, currentStock: 4, costPerUnit: 8.00, state: 'PREP' },
-      { id: 'inv_onion', name: 'White Onions', stockUnit: 'kg', parLevel: 10, currentStock: 9, costPerUnit: 2.00, state: 'RAW' },
-      { id: 'inv_sweet_potato', name: 'Sweet Potatoes (Cut)', stockUnit: 'kg', parLevel: 15, currentStock: 14, costPerUnit: 4.50, state: 'PREP' },
-      { id: 'inv_fry_oil', name: 'Fryer Oil Blend', stockUnit: 'liters', parLevel: 20, currentStock: 18, costPerUnit: 3.00, state: 'RAW' }
-   ] as InventoryItem[]
+   concepts: CONCEPTS,
+   categories: CATEGORIES,
+   products: PRODUCTS,
+   inventory: INVENTORY_ITEMS
 };
 
-const RECIPE_MOCK_DATA: Recipe[] = [
-   {
-      productId: 'item_compiler',
-      name: 'The Compiler Recipe',
-      type: 'ASSEMBLY',
-      yieldQuantity: 1,
-      yieldUnit: 'unit',
-      stationId: 'station_grill',
-      cookTimeSeconds: 240,
-      activePrepTimeSeconds: 45,
-      volumetricScore: 4,
-      components: [
-         { inventoryItemId: 'inv_beef', quantity: 0.140, unit: 'kg' },
-         { inventoryItemId: 'inv_bun', quantity: 1, unit: 'pcs' },
-         { inventoryItemId: 'inv_cheese', quantity: 2, unit: 'slices' },
-         { inventoryItemId: 'inv_sauce_house', quantity: 0.030, unit: 'kg' }
-      ]
-   },
-   {
-      productId: 'item_recursive',
-      name: 'Recursive Onion Recipe',
-      type: 'ASSEMBLY',
-      yieldQuantity: 1,
-      yieldUnit: 'unit',
-      stationId: 'station_grill',
-      cookTimeSeconds: 300,
-      activePrepTimeSeconds: 60,
-      volumetricScore: 5,
-      components: [
-         { inventoryItemId: 'inv_beef', quantity: 0.100, unit: 'kg' },
-         { inventoryItemId: 'inv_onion', quantity: 0.080, unit: 'kg' },
-         { inventoryItemId: 'inv_bun', quantity: 1, unit: 'pcs' },
-         { inventoryItemId: 'inv_cheese', quantity: 1, unit: 'slices' }
-      ]
-   },
-   {
-      productId: 'item_sweet_fries',
-      name: 'Sweet Potato Fry Recipe',
-      type: 'ASSEMBLY',
-      yieldQuantity: 1,
-      yieldUnit: 'unit',
-      stationId: 'station_fryer',
-      cookTimeSeconds: 180,
-      activePrepTimeSeconds: 15,
-      volumetricScore: 3,
-      components: [
-         { inventoryItemId: 'inv_sweet_potato', quantity: 0.200, unit: 'kg' },
-         { inventoryItemId: 'inv_fry_oil', quantity: 0.010, unit: 'liters' }
-      ]
-   }
-];
-
-const FINANCIAL_MOCK_DATA = {
-   metrics: {
-      totalRevenueMXN: 145000.00,
-      totalTaxCollectedMXN: 20000.00,
-      grossProfitMargin: 0.65,
-      laborCostPercent: 0.22,
-      totalExpensesMXN: 48000.00
-   } as FinancialMetrics,
-   vendorInvoices: [
-      { id: 'ap_001', supplier: 'Premium Meat Co.', amount: 12500.00, dueDate: '2025-12-13', status: 'Pending' },
-      { id: 'ap_002', supplier: 'Local Produce Vendor', amount: 5750.00, dueDate: '2025-12-02', status: 'Overdue' }
-   ] as VendorInvoice[],
-   accountsReceivable: [
-      { id: 'ar_001', partner: 'Uber Eats', amount: 3500.00, dueDate: '2025-12-05', status: 'Pending' },
-      { id: 'ar_002', partner: 'Catering Client A', amount: 2000.00, dueDate: '2025-12-20', status: 'Pending' }
-   ] as AccountsReceivableItem[]
-};
-
-const INTEGRATION_MOCK_DATA = {
-   paymentGateway: {
-      provider: "Stripe",
-      status: "Active",
-      liveApiKey: "sk_live_***********",
-      payoutFrequency: "Daily",
-      lastPayoutDate: "2025-12-01",
-      lastPayoutAmount: 1845.20,
-   } as PaymentGatewayConfig,
-   deliveryPartners: [
-      {
-         name: "Uber Eats",
-         apiStatus: "Active",
-         menuSyncStatus: "In Sync (4:30 PM CST)",
-         commissionRate: 0.30,
-         lastError: "None",
-         partnerToken: "uber_tok_*******",
-      },
-      {
-         name: "DoorDash",
-         apiStatus: "Scheduled Maintenance",
-         menuSyncStatus: "Pending Sync",
-         commissionRate: 0.25,
-         lastError: "401: Invalid Credentials",
-         partnerToken: "dash_tok_*******",
-      }
-   ] as DeliveryPartnerConfig[]
-};
-
-// MOCK DATA for the Financial Health Card
-const FINANCIAL_HEALTH = {
-   totalRevenueMXN: 145000.00,
-   grossProfitMargin: 0.65, // 65%
-   totalTaxCollectedMXN: 20000.00,
-   overdueAPAlert: 5750.00, // Overdue Accounts Payable
-   pendingARAlert: 3500.00, // Pending Accounts Receivable (Uber Eats)
-   topSellerName: "The Compiler (Classic)",
-   topSellerCount: 385 // Operational Metric (units sold)
-};
+const RECIPE_MOCK_DATA = RECIPES;
 
 // --- COMPONENTS ---
 

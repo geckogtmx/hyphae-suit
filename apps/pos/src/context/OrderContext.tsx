@@ -21,7 +21,7 @@ import {
   SYSTEM_CONFIG,
   LOYALTY_TRANSACTIONS,
   LOYALTY_CARDS,
-} from '../data/mock_data';
+} from '@hyphae/database/mock_data';
 
 const LOCAL_STORAGE_KEY = 'hyphae_pos_state_v3'; // Bumped version for new schema
 

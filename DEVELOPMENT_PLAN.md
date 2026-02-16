@@ -1,4 +1,4 @@
-# 🚀 HYPHAE-POS Development Plan
+# 🚀 HYPHAE-SUIT Development Plan
 
 **Version:** 1.0  
 **Date:** January 16, 2026  
@@ -92,7 +92,7 @@
 | **Order Entry**           | Menu display, modifier selection, cart management |
 | **Payment Processing**    | Cash, card, split payments with Core API          |
 | **Loyalty Management**    | Card lookup, points display (data from Core)      |
-| **Kitchen Communication** | Order dispatch to BOH via Core API                |
+| **Kitchen Communication** | Order dispatch to BOH via Core API when enabled   |
 | **Offline Capability**    | Queue orders when network unavailable             |
 | **Local Caching**         | Menu, loyalty tiers, config caching               |
 
@@ -334,6 +334,32 @@ npm install idb
 | Offline Queue | Orders queue when offline, sync when online     |
 | State Split   | Contexts separated, no functionality regression |
 | Local DB      | IndexedDB storing orders and cached menu        |
+
+---
+
+## 🧹 Phase 1.5: Remediation & Hardening (Week 4.5)
+
+> **Goal:** Address critical technical debt identifying in Repo Assessment to ensure stable foundation for backend integration.
+
+### Immediate Priority
+
+#### Task 1.7: Mock Data Consolidation
+- [ ] Centralize all mock data into `@hyphae/database`.
+- [ ] Remove inline mock data from `apps/core` and `apps/pos`.
+- [ ] Ensure shared types are strictly enforced on all mock data.
+
+#### Task 1.8: Security Prep (Authentication)
+- [x] Replace `pin: string` in shared types with secure Auth Service.
+- [x] Remove hardcoded PINs from source code.
+- [ ] Implement `AuthService` interface stub in POS.
+
+#### Task 1.10: Security Remediation (Audit Findings)
+- [x] Remove exposed `GEMINI_API_KEY` from POS client bundle.
+- [x] Sanitize mock data (remove realistic keys/tokens).
+- [ ] Implement Zod schemas for critical inputs.
+- [ ] Establish 60% coverage target for **Domain Logic** (Cart, Tax, Discounts).
+- [ ] Add Playwright E2E tests for critical flows (Login -> Order -> Checkout).
+
 
 ---
 

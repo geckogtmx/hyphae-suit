@@ -1,9 +1,8 @@
-
 /**
  * @link packages/database/src/mock_data.ts
  * @author Hyphae POS Team
- * @description Centralized mock data for seeding the database.
- * @version 2.0.0
+ * @description Centralized mock data for seeding the database and driving UI prototypes.
+ * @version 2.1.0 (Consolidated)
  */
 import {
     Concept,
@@ -15,11 +14,57 @@ import {
     InventoryItem,
     RecipeDefinition,
     StaffProfile,
-    SystemInfo,
     LoyaltyTransaction,
     LoyaltyCard,
-    ModifierOption // Added this if needed, or inferred
+    RecipeComponent // Ensure this is exported from schemas/index.ts usually
 } from '@hyphae/schemas';
+
+// --- CORE UI TYPES (Legacy/Specific to Dashboard) ---
+// TODO: Move these to @hyphae/schemas when stable
+
+export interface FinancialMetrics {
+    totalRevenueMXN: number;
+    totalTaxCollectedMXN: number;
+    grossProfitMargin: number;
+    laborCostPercent: number;
+    totalExpensesMXN: number;
+}
+
+export interface VendorInvoice {
+    id: string;
+    supplier: string;
+    amount: number;
+    dueDate: string;
+    status: 'Pending' | 'Paid' | 'Overdue';
+}
+
+export interface AccountsReceivableItem {
+    id: string;
+    partner: string;
+    amount: number;
+    dueDate: string;
+    status: 'Pending' | 'Collected' | 'Overdue';
+}
+
+export interface PaymentGatewayConfig {
+    provider: string;
+    status: 'Active' | 'Inactive' | 'Error';
+    liveApiKey: string;
+    payoutFrequency: string;
+    lastPayoutDate: string;
+    lastPayoutAmount: number;
+}
+
+export interface DeliveryPartnerConfig {
+    name: string;
+    apiStatus: 'Active' | 'Inactive' | 'Scheduled Maintenance' | 'Error';
+    menuSyncStatus: string;
+    commissionRate: number;
+    lastError?: string;
+    partnerToken: string;
+}
+
+
 
 // --- SUPPLIERS ---
 export interface Supplier {
@@ -69,13 +114,15 @@ export const SYSTEM_CONFIG = {
 };
 
 export const STAFF_PROFILES: StaffProfile[] = [
-    { id: 'staff_mgr', name: 'Sarah Manager', pin: '1234', role: 'Manager' },
-    { id: 'staff_001', name: 'John Cashier', pin: '1111', role: 'Cashier' },
-    { id: 'staff_002', name: 'Mike Line', pin: '2222', role: 'Kitchen' },
+    { id: 'staff_mgr', name: 'Sarah Manager', role: 'Manager' },
+    { id: 'staff_001', name: 'John Cashier', role: 'Cashier' },
+    { id: 'staff_002', name: 'Mike Line', role: 'Kitchen' },
 ];
 
 // --- INVENTORY ITEMS ---
+// Merging POS and Core Inventory
 export const INVENTORY_ITEMS: InventoryItem[] = [
+    // --- FROM POS ---
     // RAW MEATS
     {
         id: 'inv_beef_patty',
@@ -165,6 +212,15 @@ export const INVENTORY_ITEMS: InventoryItem[] = [
     },
     { id: 'inv_fries_cut', name: 'Cut Fries', type: 'PREP', stockUnit: 'oz', costPerUnit: 0.08 },
     { id: 'inv_bacon_jam', name: 'Bacon Jam', type: 'PREP', stockUnit: 'oz', costPerUnit: 0.8 },
+
+    // --- FROM CORE (Consolidated) ---
+    { id: 'inv_beef', name: 'Ground Beef 70/30', stockUnit: 'kg', parLevel: 10, currentStock: 12.5, costPerUnit: 12.50, type: 'RAW', state: 'RAW' },
+    { id: 'inv_bun', name: 'Tangzhong Buns', stockUnit: 'pcs', parLevel: 24, currentStock: 8, costPerUnit: 0.80, type: 'RAW', state: 'RAW' },
+    { id: 'inv_cheese', name: 'American Cheese', stockUnit: 'slices', parLevel: 50, currentStock: 45, costPerUnit: 0.20, type: 'RAW', state: 'RAW' },
+    { id: 'inv_sauce_house', name: 'B-Smash Sauce', stockUnit: 'kg', parLevel: 5, currentStock: 4, costPerUnit: 8.00, type: 'PREP', state: 'PREP' },
+    { id: 'inv_onion', name: 'White Onions', stockUnit: 'kg', parLevel: 10, currentStock: 9, costPerUnit: 2.00, type: 'RAW', state: 'RAW' },
+    { id: 'inv_sweet_potato', name: 'Sweet Potatoes (Cut)', stockUnit: 'kg', parLevel: 15, currentStock: 14, costPerUnit: 4.50, type: 'PREP', state: 'PREP' },
+    { id: 'inv_fry_oil', name: 'Fryer Oil Blend', stockUnit: 'liters', parLevel: 20, currentStock: 18, costPerUnit: 3.00, type: 'RAW', state: 'RAW' }
 ];
 
 // --- RECIPES ---
@@ -189,7 +245,7 @@ export const RECIPES: RecipeDefinition[] = [
         yieldUnit: 'lb',
         outputInventoryItemId: 'inv_carnitas_prep',
         components: [
-            { inventoryItemId: 'inv_pork_shoulder', quantity: 15, unit: 'lb', wasteFactor: 0.33 }, // 33% weight loss cooked
+            { inventoryItemId: 'inv_pork_shoulder', quantity: 15, unit: 'lb', wasteFactor: 0.33 },
         ],
     },
 
@@ -211,7 +267,6 @@ export const RECIPES: RecipeDefinition[] = [
         yieldUnit: 'count',
         components: [
             { inventoryItemId: 'inv_tortilla_corn', quantity: 1, unit: 'count' },
-            // Simplified: Al pastor meat inventory tracking logic would be here
         ],
     },
     {
@@ -224,17 +279,48 @@ export const RECIPES: RecipeDefinition[] = [
             { inventoryItemId: 'inv_carnitas_prep', quantity: 0.25, unit: 'lb' },
         ],
     },
+    // --- CORE RECIPES ---
+    {
+        id: 'recipe_compiler_burger',
+        name: 'The Compiler Recipe',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_beef', quantity: 0.140, unit: 'kg' },
+            { inventoryItemId: 'inv_bun', quantity: 1, unit: 'pcs' },
+            { inventoryItemId: 'inv_cheese', quantity: 2, unit: 'slices' },
+            { inventoryItemId: 'inv_sauce_house', quantity: 0.030, unit: 'kg' }
+        ]
+    },
+    {
+        id: 'recipe_sweet_fries',
+        name: 'Sweet Potato Fry Recipe',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_sweet_potato', quantity: 0.200, unit: 'kg' },
+            { inventoryItemId: 'inv_fry_oil', quantity: 0.010, unit: 'liters' }
+        ]
+    }
 ];
+
+
 
 export const CONCEPTS: Concept[] = [
     { id: 'tacocracy', name: 'Tacocracy', color: 'orange-500' },
     { id: 'codebs_concept', name: 'Code BS', color: 'red-500' },
+    // Core duplicates 'Code B-Smash' as 'cbs_01', we should alias or merge.
+    // For now, keeping both to avoid breakage, but this is a tech debt item.
+    { id: 'cbs_01', name: 'Code B-Smash (Core)', color: 'orange-500', flowType: 'sequential' }
 ];
 
 export const CATEGORIES: Category[] = [
     { id: 'burgers', name: 'Burgers', conceptId: 'codebs_concept' },
     { id: 'tacos', name: 'Tacos', conceptId: 'tacocracy' },
     { id: 'burritos', name: 'Burritos', conceptId: 'tacocracy' },
+    // Core
+    { id: 'cat_burgers', name: 'Smash Burgers', conceptId: 'cbs_01' },
+    { id: 'cat_sides', name: 'Sides', conceptId: 'cbs_01' }
 ];
 
 // --- MODIFIERS ---
@@ -535,7 +621,116 @@ export const PRODUCTS: Product[] = [
         packaging: { sku: 'SKU_BOWL_LID', volumePoints: 3, isMessy: false },
         modifierGroups: [MOD_SALSA],
     },
+
+    // --- FROM CORE ---
+    {
+        id: 'item_compiler',
+        name: 'The Compiler',
+        price: 120.00,
+        categoryId: 'cat_burgers',
+        requiresMods: true,
+        stock: 100,
+        metadata: { kitchenLabel: 'Compiler' },
+        inventoryMetadata: { recipeId: 'recipe_compiler_burger' },
+        active: true,
+        stationId: 'station_grill',
+        timeMetadata: { cookTimeSeconds: 240, activePrepTimeSeconds: 45 },
+        logisticsMetadata: { volumetricScore: 4, requiresContainer: true, packagingDims: [15, 15, 8] },
+        prepBatchSize: 10,
+        costOfGoods: 3.50,
+        recipeText: "1. Portion beef to 70g balls..."
+    },
+    {
+        id: 'item_recursive',
+        name: 'Recursive Onion',
+        price: 110.00,
+        categoryId: 'cat_burgers',
+        requiresMods: true,
+        stock: 50,
+        metadata: { kitchenLabel: 'Rec Onion' },
+        active: true,
+        stationId: 'station_grill',
+        timeMetadata: { cookTimeSeconds: 300, activePrepTimeSeconds: 60 },
+        logisticsMetadata: { volumetricScore: 5, requiresContainer: true, packagingDims: [15, 15, 10] },
+        prepBatchSize: 8,
+        costOfGoods: 2.90,
+        recipeText: "1. Slice onions paper thin..."
+    },
+    {
+        id: 'item_sweet_fries',
+        name: 'Sweet Potato Arrays',
+        price: 65.00,
+        categoryId: 'cat_sides',
+        requiresMods: false,
+        metadata: { kitchenLabel: 'Swt Pot Fry' },
+        inventoryMetadata: { recipeId: 'recipe_sweet_fries' },
+        active: true,
+        stationId: 'station_fryer',
+        timeMetadata: { cookTimeSeconds: 180, activePrepTimeSeconds: 15 },
+        logisticsMetadata: { volumetricScore: 3, requiresContainer: true, packagingDims: [10, 8, 12] },
+        prepBatchSize: 20,
+        costOfGoods: 0.85,
+        recipeText: "1. Cut potatoes into 1/4 inch strips..."
+    }
 ];
+
+// --- FINANCIAL MOCK DATA (Core) ---
+export const FINANCIAL_MOCK_DATA = {
+    metrics: {
+        totalRevenueMXN: 145000.00,
+        totalTaxCollectedMXN: 20000.00,
+        grossProfitMargin: 0.65,
+        laborCostPercent: 0.22,
+        totalExpensesMXN: 48000.00
+    } as FinancialMetrics,
+    vendorInvoices: [
+        { id: 'ap_001', supplier: 'Premium Meat Co.', amount: 12500.00, dueDate: '2025-12-13', status: 'Pending' },
+        { id: 'ap_002', supplier: 'Local Produce Vendor', amount: 5750.00, dueDate: '2025-12-02', status: 'Overdue' }
+    ] as VendorInvoice[],
+    accountsReceivable: [
+        { id: 'ar_001', partner: 'Uber Eats', amount: 3500.00, dueDate: '2025-12-05', status: 'Pending' },
+        { id: 'ar_002', partner: 'Catering Client A', amount: 2000.00, dueDate: '2025-12-20', status: 'Pending' }
+    ] as AccountsReceivableItem[]
+};
+
+export const INTEGRATION_MOCK_DATA = {
+    paymentGateway: {
+        provider: "Stripe",
+        status: "Active",
+        liveApiKey: "sk_test_MOCK_KEY_DO_NOT_USE",
+        payoutFrequency: "Daily",
+        lastPayoutDate: "2025-12-01",
+        lastPayoutAmount: 1845.20,
+    } as PaymentGatewayConfig,
+    deliveryPartners: [
+        {
+            name: "Uber Eats",
+            apiStatus: "Active",
+            menuSyncStatus: "In Sync (4:30 PM CST)",
+            commissionRate: 0.30,
+            lastError: "None",
+            partnerToken: "uber_tok_MOCK",
+        },
+        {
+            name: "DoorDash",
+            apiStatus: "Scheduled Maintenance",
+            menuSyncStatus: "Pending Sync",
+            commissionRate: 0.25,
+            lastError: "401: Invalid Credentials",
+            partnerToken: "dash_tok_MOCK",
+        }
+    ] as DeliveryPartnerConfig[]
+};
+
+export const FINANCIAL_HEALTH_OVERVIEW = {
+    totalRevenueMXN: 145000.00,
+    grossProfitMargin: 0.65, // 65%
+    totalTaxCollectedMXN: 20000.00,
+    overdueAPAlert: 5750.00, // Overdue Accounts Payable
+    pendingARAlert: 3500.00, // Pending Accounts Receivable (Uber Eats)
+    topSellerName: "The Compiler (Classic)",
+    topSellerCount: 385 // Operational Metric (units sold)
+};
 
 // --- LOYALTY DATA ---
 
