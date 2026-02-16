@@ -356,6 +356,7 @@ npm install idb
 #### Task 1.10: Security Remediation (Audit Findings)
 - [x] Remove exposed `GEMINI_API_KEY` from POS client bundle.
 - [x] Sanitize mock data (remove realistic keys/tokens).
+- [x] Create backend proxy service (`apps/api`) for Gemini calls.
 - [ ] Implement Zod schemas for critical inputs.
 - [ ] Establish 60% coverage target for **Domain Logic** (Cart, Tax, Discounts).
 - [ ] Add Playwright E2E tests for critical flows (Login -> Order -> Checkout).
@@ -1140,3 +1141,19 @@ _Next Review: After Phase 0 completion_
 - **Browser Compatibility**:
   - Implemented a **Mock Database Client** in `@hyphae/database` to prevent `libsql` crashes in non-Node environments.
   - Created a **Client-Side Seeder** (`clientSeed.ts`) to populate the in-memory database for UI verification.
+
+### Phase 1.5: Security Remediation & Backend Proxy (Completed Feb 2026)
+
+> **Focus:** Removing client-side API keys and establishing a secure backend foundation.
+
+#### Achievements
+- **Backend Proxy Service (`apps/api`)**:
+  - Built a Fastify + TypeScript service to handle sensitive operations.
+  - Implemented secure `GEMINI_API_KEY` handling (server-side only).
+  - Created endpoints for Strategic Analysis and Kitchen Shorthand generation.
+- **Security Hardening**:
+  - Removed all `GEMINI_API_KEY` references from `apps/pos` and `apps/core` client bundles.
+  - Sanitized shared mock data to remove realistic-looking credentials.
+- **Client Integration**:
+  - Refactored `apps/core` to use a typesafe `ApiClient` instead of direct SDK calls.
+  - Verified end-to-end flow with "Auto-Analyze" feature.

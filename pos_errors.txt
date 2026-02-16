@@ -1,0 +1,14 @@
+src/components/ErrorBoundary.tsx(36,31): error TS2339: Property 'props' does not exist on type 'ErrorBoundary'.
+src/data/mock_data_expanded.ts(8,175): error TS2307: Cannot find module './mock_data' or its corresponding type declarations.
+src/db/__tests__/db.test.ts(3,35): error TS2307: Cannot find module '../schema' or its corresponding type declarations.
+src/db/index.ts(5,25): error TS2307: Cannot find module './schema' or its corresponding type declarations.
+src/repositories/OrderRepository.ts(10,24): error TS2307: Cannot find module '../db/schema' or its corresponding type declarations.
+../../packages/database/src/index.ts(17,59): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(17,78): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(18,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(28,59): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(28,78): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(29,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+undefined
+E:\git\hyphae-suit\apps\pos:
+ÔÇëERR_PNPM_RECURSIVE_EXEC_FIRST_FAILÔÇë Command failed with exit code 2: tsc --noEmit

@@ -1,0 +1,24 @@
+vitest.config.ts(5,15): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'Plugin<any>[]' is not assignable to type 'PluginOption'.
+      Type 'Plugin<any>[]' is not assignable to type 'PluginOption[]'.
+        Type 'Plugin<any>' is not assignable to type 'PluginOption'.
+          Type 'import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.11_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").Plugin<any>' is not assignable to type 'import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@24.10.13_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").Plugin<any>'.
+            Types of property 'hotUpdate' are incompatible.
+              Type 'import("E:/git/hyphae-suit/node_modules/.pnpm/rollup@4.57.1/node_modules/rollup/dist/rollup").ObjectHook<(this: HotUpdatePluginContext, options: import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.11_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").HotUp...' is not assignable to type 'import("E:/git/hyphae-suit/node_modules/.pnpm/rollup@4.57.1/node_modules/rollup/dist/rollup").ObjectHook<(this: HotUpdatePluginContext, options: import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@24.10.13_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").HotUp...'.
+                Type '(this: HotUpdatePluginContext, options: HotUpdateOptions) => void | EnvironmentModuleNode[] | Promise<void | EnvironmentModuleNode[]>' is not assignable to type 'ObjectHook<(this: HotUpdatePluginContext, options: HotUpdateOptions) => void | EnvironmentModuleNode[] | Promise<void | EnvironmentModuleNode[]>>'.
+                  Type '(this: HotUpdatePluginContext, options: import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.11_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").HotUpdateOptions) => void | ... 1 more ... | Promise<...>' is not assignable to type '(this: HotUpdatePluginContext, options: import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@24.10.13_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").HotUpdateOptions) => void | ... 1 more ... | Promise<...>'.
+                    The 'this' types of each signature are incompatible.
+                      Type 'HotUpdatePluginContext' is not assignable to type 'HotUpdatePluginContext'. Two different types with this name exist, but they are unrelated.
+                        The types of 'environment.pluginContainer.environment' are incompatible between these types.
+                          Type 'import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@24.10.13_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").Environment' is not assignable to type 'import("E:/git/hyphae-suit/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.11_jiti@2.6.1_lightningcss@1.30.2_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/index").Environment'.
+                            Type 'DevEnvironment' is not assignable to type 'Environment'.
+../../packages/database/src/index.ts(17,59): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(17,78): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(18,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(28,59): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(28,78): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+../../packages/database/src/index.ts(29,28): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+undefined
+E:\git\hyphae-suit\apps\core:
+ÔÇëERR_PNPM_RECURSIVE_EXEC_FIRST_FAILÔÇë Command failed with exit code 2: tsc --noEmit

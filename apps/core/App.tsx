@@ -65,7 +65,7 @@ import {
    PaymentGatewayConfig,
    DeliveryPartnerConfig
 } from './types/schema';
-import { GeminiService } from './lib/gemini';
+import { ApiClient } from './lib/apiClient';
 import { InventoryService } from './lib/inventory';
 import { ProductBuilder } from './components/ProductBuilder';
 import {
@@ -582,6 +582,22 @@ const IntelligenceView = () => {
                         <Send size={20} />
                      </button>
                   </div>
+               </div>
+               <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end">
+                  <button
+                     onClick={async () => {
+                        setMessages(prev => [...prev, { role: 'user', text: "Run Strategic Analysis" }]);
+                        try {
+                           const report = await ApiClient.analyzePerformance([], []);
+                           setMessages(prev => [...prev, { role: 'agent', text: typeof report === 'string' ? report : JSON.stringify(report) }]);
+                        } catch (e) {
+                           setMessages(prev => [...prev, { role: 'agent', text: "Analysis Failed: Backend unavailable." }]);
+                        }
+                     }}
+                     className="text-xs font-mono font-bold text-brand hover:text-white transition-colors flex items-center gap-2"
+                  >
+                     <Zap size={14} /> AUTO-ANALYZE
+                  </button>
                </div>
             </div>
          </div>
