@@ -7,8 +7,11 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useOrder } from '../context/OrderContext';
+import { useCheckout } from '../context/CheckoutContext';
 import { useMenuData } from '../hooks/useMenuData';
 import { Product, OrderItem, PaymentMethod } from '../types';
+import { OrderService } from '../services/OrderService';
+import { LoyaltyService } from '../services/LoyaltyService';
 import OrderBuilder from './OrderBuilder';
 import CheckoutModal from './CheckoutModal';
 import LoyaltyScreen from './LoyaltyScreen';
@@ -132,7 +135,9 @@ const Stage: React.FC<StageProps> = ({
     dispatch({ type: 'CANCEL_EDIT' });
   };
 
-  const handlePayment = (
+  const { isProcessing, processPayment } = useCheckout();
+
+  const handlePayment = async (
     method: PaymentMethod,
     amountPaid: number,
     isFullPayment: boolean,
@@ -140,6 +145,44 @@ const Stage: React.FC<StageProps> = ({
     tenderedAmount?: number,
     tipAmount?: number
   ) => {
+    // 1. Process local/mock payment via Checkout abstraction
+    const orderIdStub = `ord_${Date.now()}`;
+    const paymentResult = await processPayment(method, amountPaid, orderIdStub);
+
+    if (!paymentResult.success) {
+      // Note: Error state is managed by CheckoutContext and should be displayed in Modal
+      return;
+    }
+
+    // 2. Call Checkout API for persistence & inventory
+    const checkoutPayload = {
+      id: orderIdStub,
+      items: state.items.map((i) => ({
+        productId: i.id,
+        name: i.name,
+        price: i.finalPrice,
+        quantity: 1, // Assumption
+        modifiers: JSON.stringify(i.selectedModifiers),
+      })),
+      subtotal: total,
+      tax: tax,
+      total: grandTotal,
+      orderType: state.orderType,
+      payment: {
+        method,
+        amount: amountPaid,
+        transactionId: paymentResult.transactionId,
+      },
+      loyaltyProfileId: state.loyaltyProfile?.id,
+      staffId: 'staff_001', // TODO: Get from AuthContext
+    };
+
+    // We don't necessarily need to block UI for API success, but let's log it
+    OrderService.checkout(checkoutPayload).catch((err) => {
+      console.error('[Stage] API Checkout Background Error:', err);
+    });
+
+    // 3. Once payment is successful, finalize order record in local state
     dispatch({
       type: 'CREATE_ORDER',
       payload: {
@@ -149,12 +192,13 @@ const Stage: React.FC<StageProps> = ({
         subtotal: total,
         tax: tax,
         total: grandTotal,
-        confirmationNumber,
+        confirmationNumber: paymentResult.transactionId || confirmationNumber,
         tenderedAmount,
         tipAmount,
         isLoyalty: !!state.loyaltyProfile,
       },
     });
+
     setIsCheckoutOpen(false);
     setIsTicketExpanded(false);
 
@@ -169,9 +213,15 @@ const Stage: React.FC<StageProps> = ({
     dispatch({ type: 'LOGOUT_LOYALTY' });
   };
 
-  const handleLoyaltyLogin = (cardNumber: string) => {
-    dispatch({ type: 'LOGIN_LOYALTY', payload: cardNumber });
-    setMode('BROWSE');
+  const handleLoyaltyLogin = async (cardNumber: string) => {
+    const profile = await LoyaltyService.fetchProfile(cardNumber);
+    if (profile) {
+      dispatch({ type: 'SET_LOYALTY_PROFILE', payload: profile });
+      setMode('BROWSE');
+    } else {
+      // In a real POS we'd show a "Card Not Found" alert here
+      console.warn(`[Stage] Loyalty card not found: ${cardNumber}`);
+    }
   };
 
   const renderLoyaltyBanner = () => {

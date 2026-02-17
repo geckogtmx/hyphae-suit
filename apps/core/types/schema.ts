@@ -51,6 +51,7 @@ export interface WasteLog {
 export interface DeviceState {
   id: string;
   name: string;
+  type: 'POS' | 'KDS' | 'CORE';
   status: 'online' | 'offline' | 'syncing';
   lastHeartbeat: ISODate;
   batteryLevel: number;

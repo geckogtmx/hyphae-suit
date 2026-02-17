@@ -27,20 +27,19 @@ export const useIdleTimer = (timeoutMs: number = 300000) => {
   useEffect(() => {
     const resetTimer = () => {
       // Use functional update to check current state without closure issues
-      setIsIdle((prevIsIdle) => {
-        // If we are ALREADY idle, we stay idle (Screen Protector Mode).
-        // Standard activity events (like mousemove) should not wake it up.
-        // Only the explicit 'wake' function can disable idle state.
-        if (prevIsIdle) {
-          return true;
-        }
+      // If we are currently IDLE, we do NOT reset the timer automatically on movement.
+      // We wait for explicit 'wake' call. This prevents subtle "glitches" if mouse moves while screen is off.
+      // However, for typical usage, standard activity SHOULD reset timer if not yet idle.
 
-        // If we are active, we reset the timer
+      // Only reset timer if NOT idle
+      if (!isIdle) {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => setIsIdle(true), timeoutMs);
+      }
+    };
 
-        return false;
-      });
+    const handleActivity = () => {
+      resetTimer();
     };
 
     // Initial start
@@ -49,13 +48,13 @@ export const useIdleTimer = (timeoutMs: number = 300000) => {
     // Events that consider the user "active"
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
-    events.forEach((event) => window.addEventListener(event, resetTimer));
+    events.forEach((event) => window.addEventListener(event, handleActivity));
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      events.forEach((event) => window.removeEventListener(event, resetTimer));
+      events.forEach((event) => window.removeEventListener(event, handleActivity));
     };
-  }, [timeoutMs]);
+  }, [timeoutMs, isIdle]); // Add isIdle dependency
 
   return { isIdle, triggerIdle, wake };
 };

@@ -141,6 +141,7 @@ export const orders = sqliteTable('orders', {
   storeId: text('store_id').notNull(),
   terminalId: text('terminal_id').notNull(),
   staffId: text('staff_id'),
+  loyaltyProfileId: text('loyalty_profile_id').references(() => loyaltyProfiles.id),
 
   status: text('status').notNull().default('Pending'),
   paymentStatus: text('payment_status').notNull().default('Unpaid'),
@@ -152,6 +153,16 @@ export const orders = sqliteTable('orders', {
 
   createdAt: integer('created_at').notNull(),
   completedAt: integer('completed_at'),
+});
+
+export const payments = sqliteTable('payments', {
+  id: text('id').primaryKey(),
+  orderId: text('order_id').notNull().references(() => orders.id),
+  method: text('method').notNull(), // CASH, CARD, etc.
+  amount: real('amount').notNull(),
+  status: text('status').notNull(), // PENDING, COMPLETED, FAILED
+  transactionId: text('transaction_id'),
+  timestamp: integer('timestamp').notNull(),
 });
 
 export const orderItems = sqliteTable('order_items', {
@@ -172,6 +183,27 @@ export const users = sqliteTable('users', {
   pin: text('pin').notNull(), // Hashed or Encrypted
   role: text('role').notNull().default('staff'), // admin, manager, staff
   isActive: integer('is_active', { mode: 'boolean' }).default(true),
+});
+
+export const loyaltyProfiles = sqliteTable('loyalty_profiles', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  cardNumber: text('card_number').notNull().unique(),
+  currentPoints: real('current_points').default(0),
+  totalPunches: integer('total_punches').default(0),
+  currentTierId: text('current_tier_id').notNull().default('tier_bronze'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const loyaltyTransactions = sqliteTable('loyalty_transactions', {
+  id: text('id').primaryKey(),
+  profileId: text('profile_id').notNull().references(() => loyaltyProfiles.id),
+  type: text('type').notNull(), // EARN, REDEEM, ADJUST
+  points: real('points').notNull(),
+  orderId: text('order_id').references(() => orders.id),
+  timestamp: integer('timestamp').notNull(),
 });
 
 // --- RELATIONS ---
@@ -210,6 +242,10 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.categoryId],
     references: [categories.id],
   }),
+  recipe: one(recipes, {
+    fields: [products.recipeId],
+    references: [recipes.id],
+  }),
   modifierGroups: many(productModifiers),
 }));
 
@@ -232,5 +268,32 @@ export const modifierOptionsRelations = relations(modifierOptions, ({ one }) => 
   group: one(modifierGroups, {
     fields: [modifierOptions.groupId],
     references: [modifierGroups.id],
+  }),
+}));
+
+export const ordersRelations = relations(orders, ({ many }) => ({
+  items: many(orderItems),
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  order: one(orders, {
+    fields: [payments.orderId],
+    references: [orders.id],
+  }),
+}));
+
+export const loyaltyProfilesRelations = relations(loyaltyProfiles, ({ many }) => ({
+  transactions: many(loyaltyTransactions),
+}));
+
+export const loyaltyTransactionsRelations = relations(loyaltyTransactions, ({ one }) => ({
+  profile: one(loyaltyProfiles, {
+    fields: [loyaltyTransactions.profileId],
+    references: [loyaltyProfiles.id],
+  }),
+  order: one(orders, {
+    fields: [loyaltyTransactions.orderId],
+    references: [orders.id],
   }),
 }));

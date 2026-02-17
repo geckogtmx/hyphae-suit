@@ -18,24 +18,33 @@ import {
 } from '@hyphae/database/mock_data';
 import { MenuRepository } from '../repositories/MenuRepository';
 
-const API_URL = 'http://localhost:3001';
+// Construct API Base URL carefully
+const rawUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api';
+// Ensure no trailing slash, and remove /api if we are appending /api later?
+// Actually, standard practice: VITE_API_URL is the base for API calls.
+// If VITE_API_URL ends in /api, we shouldn't append /api again.
+const API_BASE = rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
 
 import { AuthService } from '../services/AuthService';
 
 // --- API FETCHERS ---
 
-const getHeaders = () => {
+const getHeaders = (): HeadersInit => {
   const session = AuthService.getStoredSession();
-  return {
+  const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(session?.token ? { 'Authorization': `Bearer ${session.token}` } : {})
+    'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
   };
+  if (session?.token) {
+    (headers as any)['Authorization'] = `Bearer ${session.token}`;
+  }
+  return headers;
 };
 
 const fetchConcepts = async (): Promise<Concept[]> => {
   try {
-    const response = await fetch(`${API_URL}/api/concepts`, { headers: getHeaders() });
-    if (!response.ok) throw new Error('Failed to fetch concepts');
+    const response = await fetch(`${API_BASE}/concepts`, { headers: getHeaders() });
+    if (!response.ok) throw new Error(`Status: ${response.status}`);
     return await response.json();
   } catch (e) {
     console.warn("API Fetch Failed (Concepts), using Mock:", e);
@@ -45,8 +54,8 @@ const fetchConcepts = async (): Promise<Concept[]> => {
 
 const fetchCategories = async (): Promise<Category[]> => {
   try {
-    const response = await fetch(`${API_URL}/api/categories`, { headers: getHeaders() });
-    if (!response.ok) throw new Error('Failed to fetch categories');
+    const response = await fetch(`${API_BASE}/categories`, { headers: getHeaders() });
+    if (!response.ok) throw new Error(`Status: ${response.status}`);
     return await response.json();
   } catch (e) {
     console.warn("API Fetch Failed (Categories), using Mock:", e);
@@ -57,7 +66,8 @@ const fetchCategories = async (): Promise<Category[]> => {
 const fetchProducts = async (): Promise<Product[]> => {
   // Attempt API Fetch First (Online)
   try {
-    const response = await fetch(`${API_URL}/api/products`, { headers: getHeaders() });
+    console.debug(`Fetching products from: ${API_BASE}/products`);
+    const response = await fetch(`${API_BASE}/products`, { headers: getHeaders() });
     if (response.ok) {
       const data = await response.json();
       // Simple transform to flatten Drizzle structure if needed, or assume backend does it.
@@ -70,8 +80,9 @@ const fetchProducts = async (): Promise<Product[]> => {
       // If schema mismatch causes UI issues, we fallback to mock.
       return data;
     }
+    console.error(`API Fetch Failed (Products) Status: ${response.status}`);
   } catch (e) {
-    console.warn('API Fetch Failed (Products), trying Local DB/Mock');
+    console.error('API Fetch Error (Products):', e);
   }
 
   // Fallback: Local IndexedDB or Mock
@@ -93,25 +104,29 @@ const fetchLoyaltyTiers = async (): Promise<LoyaltyTier[]> => {
 export const useMenuData = () => {
   const queryClient = useQueryClient();
 
-  // Queries
+  // Queries with optimized staleTime for static data
   const { data: concepts = CONCEPTS, isLoading: loadingConcepts } = useQuery({
     queryKey: ['concepts'],
     queryFn: fetchConcepts,
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
 
   const { data: categories = CATEGORIES, isLoading: loadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
+    staleTime: 15 * 60 * 1000, // 15 minutes
   });
 
   const { data: products = PRODUCTS, isLoading: loadingProducts } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts,
+    staleTime: 5 * 60 * 1000,  // 5 minutes
   });
 
   const { data: loyaltyTiers = LOYALTY_TIERS, isLoading: loadingTiers } = useQuery({
     queryKey: ['loyaltyTiers'],
     queryFn: fetchLoyaltyTiers,
+    staleTime: 60 * 60 * 1000, // 1 hour
   });
 
   // Mock Inventory/Recipes (No API yet)
@@ -123,13 +138,13 @@ export const useMenuData = () => {
   // Mutations
   const saveProductMutation = useMutation({
     mutationFn: async (product: Product) => {
-      const response = await fetch(`${API_URL}/products/${product.id}`, {
+      const response = await fetch(`${API_BASE}/products/${product.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(product),
       });
       if (!response.ok && response.status === 404) {
-        await fetch(`${API_URL}/products`, {
+        await fetch(`${API_BASE}/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(product),

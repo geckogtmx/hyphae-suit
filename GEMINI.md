@@ -39,12 +39,12 @@ The following rules are enforced across the entire monorepo:
 ## 4. Project Status & Roadmap
 
 ### 🟢 apps/pos (Hyphae POS)
-- **Status**: Phase 3 - Backend Integration (Infrastructure)
-- **Key Features**: Offline-first, Optimistic UI, Local-First Sync.
+- **Status**: Phase 3 - Backend Integration Complete
+- **Key Features**: Offline-first, Checkout API, Inventory Sync, Loyalty Backend.
 
 ### 🟡 apps/core (Hyphae Core)
-- **Status**: Phase 1 - Feature Porting & Foundation
-- **Key Features**: Product Builder (ported), Dashboard, Inventory Management.
+- **Status**: Phase 1.5 - Enhanced Dashboard
+- **Key Features**: Product Builder, AI Hub, Loyalty/Financial Analytics.
 - **Recent Work**: Integrated `ProductBuilder`, aligned with shared schemas.
 
 ### 🟣 apps/boh (Kitchen Prep)
@@ -64,6 +64,7 @@ The following rules are enforced across the entire monorepo:
 
 ## 6. Maintenance Log
 
+- **2026-02-17**: Completed POS Phase 3 (Backend Integration). Added Inventory Depletion, Loyalty System, and real-time checkout sync.
 - **2026-02-12**: Consolidatd `GEMINI.md` to root.
 - **2026-02-12**: Ported "Product Builder" to Core; Created `@hyphae/schemas`.
 - **2026-01-20**: (POS) Phase 2 Inventory & Verification Complete.

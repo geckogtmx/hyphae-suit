@@ -134,7 +134,50 @@ export interface SystemInfo {
     shiftId?: string;
 }
 
-// --- LOYALTY ---
+// --- ORDERS ---
+
+export type OrderStatus = 'Pending' | 'Cooking' | 'Ready' | 'Completed' | 'Cancelled';
+export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid' | 'Refunded';
+
+export interface OrderItem {
+    id: string;
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    modifiers?: string; // JSON string of selected modifiers
+}
+
+export interface Order {
+    id: string;
+    storeId: string;
+    terminalId: string;
+    staffId?: string;
+    status: OrderStatus;
+    paymentStatus: PaymentStatus;
+    orderType: OrderType;
+    subtotal: number;
+    tax: number;
+    total: number;
+    createdAt: number;
+    completedAt?: number;
+    items?: OrderItem[];
+}
+
+// --- PAYMENTS ---
+
+export type PaymentMethod = 'CASH' | 'CARD' | 'LOYALTY' | 'OTHER';
+export type PaymentRecordStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
+
+export interface PaymentRecord {
+    id: string;
+    orderId: string;
+    method: PaymentMethod;
+    amount: number;
+    status: PaymentRecordStatus;
+    transactionId?: string; // Provider transaction ref
+    timestamp: number;
+}
 
 export interface LoyaltyTier {
     id: string;
@@ -169,7 +212,9 @@ export interface LoyaltyTransaction {
 export interface LoyaltyProfile {
     id: string;
     name: string;
+    email?: string;
     phone: string;
+    cardNumber?: string;
     currentTierId: string;
 
     // These are "Cached Aggregates" - derived from the sum of transactions

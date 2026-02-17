@@ -24,6 +24,7 @@ import {
    Scale,
    Trash2,
    X,
+   Monitor,
    ChevronDown,
    ChevronUp,
    Brain,
@@ -59,6 +60,7 @@ import {
    DeviceState,
    TransactionRecord,
    Recipe,
+   RecipeDefinition,
    FinancialMetrics,
    VendorInvoice,
    AccountsReceivableItem,
@@ -68,6 +70,7 @@ import {
 import { ApiClient } from './lib/apiClient';
 import { InventoryService } from './lib/inventory';
 import { ProductBuilder } from './components/ProductBuilder';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import {
    CONCEPTS,
    CATEGORIES,
@@ -96,11 +99,11 @@ const RECIPE_MOCK_DATA = RECIPES;
 const NavigationHeader = ({
    activeView,
    setView,
-   onlineCount
+   devices
 }: {
    activeView: string,
    setView: (v: string) => void,
-   onlineCount: number
+   devices: DeviceState[]
 }) => {
    // ... other code ...
 
@@ -156,10 +159,22 @@ const NavigationHeader = ({
          </nav>
 
          {/* Right: System Status */}
-         <div className="flex items-center justify-end gap-4 w-48">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-               <Wifi size={14} className={onlineCount > 0 ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "text-red-500"} />
-               <span className="text-xs font-mono font-bold text-gray-300">{onlineCount} UNITS</span>
+         <div className="flex items-center justify-end gap-3 w-56">
+            <div className="flex items-center gap-2">
+               {/* POS Status */}
+               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10" title="POS Units">
+                  <Monitor size={12} className={devices.some(d => d.type === 'POS' && d.status === 'online') ? "text-brand" : "text-gray-600"} />
+                  <span className="text-[10px] font-mono font-bold text-gray-400">
+                     {devices.filter(d => d.type === 'POS' && d.status === 'online').length}
+                  </span>
+               </div>
+               {/* KDS Status */}
+               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10" title="Kitchen Units">
+                  <ChefHat size={12} className={devices.some(d => d.type === 'KDS' && d.status === 'online') ? "text-emerald-400" : "text-gray-600"} />
+                  <span className="text-[10px] font-mono font-bold text-gray-400">
+                     {devices.filter(d => d.type === 'KDS' && d.status === 'online').length}
+                  </span>
+               </div>
             </div>
             <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-brand to-emerald-500 flex items-center justify-center text-black font-bold text-xs border border-white/20">
                AD
@@ -181,10 +196,14 @@ const DashboardView = ({
 }) => {
    const lowStockItems = InventoryService.getLowStockItems(inventory);
    const [alertsCollapsed, setAlertsCollapsed] = useState(false);
+   const [loyaltySummary, setLoyaltySummary] = useState({ totalMembers: 0, recentEnrollments: 0 });
 
    useEffect(() => {
       // Seed the client-side DB for browser testing
       seedClientDatabase().then(() => console.log('Client DB Ready'));
+
+      // Fetch Loyalty Metrics
+      ApiClient.getLoyaltySummary().then(setLoyaltySummary);
    }, []);
 
    return (
@@ -344,16 +363,23 @@ const DashboardView = ({
                <div className="text-xs text-gray-500 mt-2 font-mono">MONTHLY RUN RATE</div>
             </div>
 
-            <div className="col-span-12 md:col-span-12 lg:col-span-6 glass-panel glass-panel-hover rounded-2xl p-6 flex items-center justify-between">
+            <div className="col-span-12 md:col-span-6 lg:col-span-3 glass-panel glass-panel-hover rounded-2xl p-6">
+               <div className="text-gray-400 text-xs font-mono mb-2 uppercase flex items-center gap-2">
+                  <Award size={14} className="text-brand" /> Loyalty Base
+               </div>
+               <div className="text-4xl font-mono font-bold text-white">{loyaltySummary.totalMembers}</div>
+               <div className="text-[10px] text-emerald-400 mt-2 font-mono">+{loyaltySummary.recentEnrollments} IN LAST 30D</div>
+            </div>
+
+            <div className="col-span-12 md:col-span-6 lg:col-span-3 glass-panel glass-panel-hover rounded-2xl p-6 flex items-center justify-between">
                <div>
                   <div className="text-gray-400 text-xs font-mono mb-2 uppercase flex items-center gap-2">
-                     <Package size={14} /> Inventory Health
+                     <Package size={14} /> Inventory
                   </div>
-                  <div className="text-4xl font-mono font-bold text-white">{inventory.length} SKUs</div>
-                  <div className="text-xs text-gray-500 mt-1 font-mono">TOTAL TRACKED ITEMS</div>
+                  <div className="text-2xl font-mono font-bold text-white">{inventory.length} SKUs</div>
                </div>
-               <div className="h-16 w-16 rounded-full border-4 border-white/10 border-t-brand flex items-center justify-center">
-                  <span className="font-mono font-bold text-brand">92%</span>
+               <div className="h-12 w-12 rounded-full border-2 border-white/10 border-t-brand flex items-center justify-center">
+                  <span className="font-mono text-[10px] font-bold text-brand">92%</span>
                </div>
             </div>
 
@@ -669,14 +695,14 @@ const App = () => {
    // MOCK DATA INJECTION
    const [products] = useState<Product[]>(MOCK_DATA.products);
    const [inventory] = useState<InventoryItem[]>(MOCK_DATA.inventory);
-   const [recipes] = useState<Recipe[]>(RECIPE_MOCK_DATA);
+   const [recipes] = useState<RecipeDefinition[]>(RECIPE_MOCK_DATA);
    const [transactions] = useState<TransactionRecord[]>([
       { id: 't1', posId: 'POS-01', timestamp: new Date().toISOString(), items: [], total: 120.00, paymentMethod: 'card', status: 'completed' },
       { id: 't2', posId: 'POS-01', timestamp: new Date().toISOString(), items: [], total: 65.00, paymentMethod: 'qr', status: 'completed' },
    ]);
    const [devices] = useState<DeviceState[]>([
-      { id: 'd1', name: 'Counter iPad 01', status: 'online', lastHeartbeat: new Date().toISOString(), batteryLevel: 82, appVersion: '1.2.0', currentMenuVersion: 'v1.2.4', pendingUploads: 0 },
-      { id: 'd2', name: 'Kitchen KDS', status: 'online', lastHeartbeat: new Date().toISOString(), batteryLevel: 100, appVersion: '1.2.0', currentMenuVersion: 'v1.2.4', pendingUploads: 0 },
+      { id: 'd1', name: 'Counter iPad 01', type: 'POS', status: 'online', lastHeartbeat: new Date().toISOString(), batteryLevel: 82, appVersion: '1.2.0', currentMenuVersion: 'v1.2.4', pendingUploads: 0 },
+      { id: 'd2', name: 'Kitchen KDS', type: 'KDS', status: 'online', lastHeartbeat: new Date().toISOString(), batteryLevel: 100, appVersion: '1.2.0', currentMenuVersion: 'v1.2.4', pendingUploads: 0 },
    ]);
 
    const onlineCount = devices.filter(d => d.status === 'online').length;
@@ -693,25 +719,27 @@ const App = () => {
    };
 
    return (
-      <div className="min-h-screen text-gray-200 selection:bg-brand selection:text-black font-sans">
-         <NavigationHeader activeView={activeView} setView={setView} onlineCount={onlineCount} />
+      <ErrorBoundary>
+         <div className="min-h-screen text-gray-200 selection:bg-brand selection:text-black font-sans">
+            <NavigationHeader activeView={activeView} setView={setView} devices={devices} />
 
-         <main className="relative z-0">
-            {activeView === 'dashboard' && <DashboardView transactions={transactions} products={products} inventory={inventory} />}
-            {activeView === 'finance' && <FinanceView />}
-            {activeView === 'intelligence' && <IntelligenceView />}
-            {activeView === 'products' && (
-               <ProductConfigView
-                  products={products}
-                  onSave={handleSaveProducts}
-                  categories={MOCK_DATA.categories}
-                  concepts={MOCK_DATA.concepts}
-               />
-            )}
-            {activeView === 'inventory' && <InventoryView inventory={inventory} />}
-            {activeView === 'devices' && <DevicesView devices={devices} />}
-         </main>
-      </div>
+            <main className="relative z-0">
+               {activeView === 'dashboard' && <DashboardView transactions={transactions} products={products} inventory={inventory} />}
+               {activeView === 'finance' && <FinanceView />}
+               {activeView === 'intelligence' && <IntelligenceView />}
+               {activeView === 'products' && (
+                  <ProductConfigView
+                     products={products}
+                     onSave={handleSaveProducts}
+                     categories={MOCK_DATA.categories}
+                     concepts={MOCK_DATA.concepts}
+                  />
+               )}
+               {activeView === 'inventory' && <InventoryView />}
+               {activeView === 'devices' && <DevicesView devices={devices} />}
+            </main>
+         </div>
+      </ErrorBoundary>
    );
 };
 

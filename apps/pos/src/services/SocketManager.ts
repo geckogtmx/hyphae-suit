@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
 class SocketManager {
     private socket: Socket | null = null;
@@ -26,6 +26,9 @@ class SocketManager {
         this.socket = io(SOCKET_URL, {
             transports: ['websocket'],
             autoConnect: false,
+            auth: {
+                token: import.meta.env.VITE_HYPHAE_API_KEY || 'dev-secret-123'
+            }
         });
 
         this.socket.on('connect', () => {

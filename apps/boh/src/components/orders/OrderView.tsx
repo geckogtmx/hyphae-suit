@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, Button, Badge } from '../ui/base';
 import { Check, Clock, RefreshCw, BarChart2, List, Layers, Wand2 } from 'lucide-react';
 import { socketManager } from '../../services/SocketManager';
+import { soundService } from '../../services/SoundService';
 import { calculateSpecificSummary, groupItemsForAssembly, type SavedOrder } from '../../lib/orderHelpers';
 
 interface KitchenTicket {
@@ -260,7 +261,7 @@ export function OrderView() {
         setIsLoading(true);
         try {
             // Use same proxy key as POS for simplicity in dev
-            const res = await fetch('http://localhost:3001/api/kitchen-queue', {
+            const res = await fetch('http://127.0.0.1:3001/api/kitchen-queue', {
                 headers: {
                     'x-api-key': 'dev-secret-123'
                 }
@@ -279,7 +280,7 @@ export function OrderView() {
 
     const completeTicket = async (id: string) => {
         try {
-            await fetch(`http://localhost:3001/api/kitchen-queue/${id}/complete`, {
+            await fetch(`http://127.0.0.1:3001/api/kitchen-queue/${id}/complete`, {
                 method: 'POST',
                 headers: {
                     'x-api-key': 'dev-secret-123'
@@ -287,6 +288,7 @@ export function OrderView() {
             });
             // Optimistic update
             setTickets(prev => prev.filter(t => t.id !== id));
+            soundService.playOrderComplete();
         } catch (err) {
             console.error('Failed to complete ticket', err);
         }
@@ -305,6 +307,7 @@ export function OrderView() {
             setTickets(prev => {
                 // Deduplicate
                 if (prev.some(t => t.id === ticket.id)) return prev;
+                soundService.playNewOrder();
                 return [...prev, ticket];
             });
         };

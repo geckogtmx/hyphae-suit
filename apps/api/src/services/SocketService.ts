@@ -21,9 +21,26 @@ class SocketService {
 
         this.io = new Server(server, {
             cors: {
-                origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+                origin: [
+                    'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175',
+                    'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'
+                ],
                 methods: ['GET', 'POST']
             }
+        });
+
+        // Basic Authentication Middleware
+        this.io.use((socket, next) => {
+            const token = socket.handshake.auth.token || socket.handshake.headers['x-api-key'];
+            const hyphaeKey = process.env.HYPHAE_API_KEY;
+
+            // In Dev, allow if key is placeholder or missing?
+            // For now, let's just log if missing but allowed for local-only prototyping
+            if (!token && hyphaeKey) {
+                console.warn(`⚠️ Unauthenticated socket connection attempt: ${socket.id}`);
+                // return next(new Error('Authentication failed')); 
+            }
+            next();
         });
 
         console.log('✅ Socket.IO Initialized');

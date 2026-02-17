@@ -2,7 +2,7 @@
 
 import { AnalyzePayload } from '@hyphae/schemas';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://127.0.0.1:3001/api';
 const API_KEY = import.meta.env.VITE_HYPHAE_API_KEY;
 
 export const ApiClient = {

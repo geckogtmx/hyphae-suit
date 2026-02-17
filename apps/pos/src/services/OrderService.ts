@@ -109,11 +109,37 @@ export class OrderService {
       isLoyalty: !!params.loyaltyProfile,
       loyaltySnapshot: params.loyaltyProfile
         ? {
-            tierName: params.loyaltyProfile.currentTierId, // In real app, map to name
-            tierColor: '#FACC15', // Mock gold color
-            pointsEarned: Math.floor(params.total),
-          }
+          tierName: params.loyaltyProfile.currentTierId, // In real app, map to name
+          tierColor: '#FACC15', // Mock gold color
+          pointsEarned: Math.floor(params.total),
+        }
         : undefined,
     };
+  }
+
+  /**
+   * Send order to backend for persistence and inventory deduction.
+   */
+  static async checkout(payload: any): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/order/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': (import.meta as any).env.VITE_HYPHAE_API_KEY || 'dev-secret-123',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Checkout failed');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error('[OrderService] Checkout Error:', error);
+      return { success: false, error: error.message };
+    }
   }
 }

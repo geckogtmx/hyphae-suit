@@ -9,6 +9,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Product, ModifierGroup, SelectedModifier, OrderItem, ModifierVariation } from '../types';
 import ActionGridButton from './ActionGridButton';
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface OrderBuilderProps {
   product: Product;
@@ -26,6 +27,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   onStepChange,
 }) => {
   const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
+  const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>(
     editItem?.selectedModifiers || []
   );
@@ -120,6 +122,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     // NOTE: We don't block auto-advance here because auto-advance implies a selection was JUST made.
 
     if (currentGroupIndex < groups.length - 1) {
+      setDirection(1);
       setCurrentGroupIndex((prev) => prev + 1);
     } else {
       finalizeOrder();
@@ -202,6 +205,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
   const handlePrevious = () => {
     if (currentGroupIndex > 0) {
+      setDirection(-1);
       setCurrentGroupIndex((prev) => prev - 1);
     }
   };
@@ -214,6 +218,21 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       </div>
     );
   }
+
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 50 : -50,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? 50 : -50,
+      opacity: 0,
+    }),
+  };
 
   return (
     <div className="h-full w-full flex flex-col bg-zinc-50 dark:bg-zinc-900 dark:bg-zinc-950 transition-colors">
@@ -257,34 +276,47 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       </div>
 
       {/* OPTIONS GRID */}
-      <div className="flex-1 p-6 overflow-y-auto bg-zinc-50 dark:bg-zinc-950">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {currentGroup.options.map((option) => {
-            const isSelected = selectedModifiers.some(
-              (m) => m.groupId === currentGroup.id && m.optionId === option.id
-            );
-            const selectedMod = selectedModifiers.find(
-              (m) => m.groupId === currentGroup.id && m.optionId === option.id
-            );
+      <div className="flex-1 relative overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={currentGroup?.id}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute inset-0 p-6 overflow-y-auto"
+          >
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {currentGroup.options.map((option) => {
+                const isSelected = selectedModifiers.some(
+                  (m) => m.groupId === currentGroup.id && m.optionId === option.id
+                );
+                const selectedMod = selectedModifiers.find(
+                  (m) => m.groupId === currentGroup.id && m.optionId === option.id
+                );
 
-            return (
-              <div key={option.id} className="h-32">
-                <ActionGridButton
-                  title={option.name}
-                  price={option.price}
-                  selected={isSelected}
-                  variation={selectedMod?.variation}
-                  onClick={() =>
-                    handleModifierToggle(currentGroup, option.id, option.name, option.price)
-                  }
-                  onVariationChange={
-                    isSelected ? (v) => updateVariation(currentGroup.id, option.id, v) : undefined
-                  }
-                />
-              </div>
-            );
-          })}
-        </div>
+                return (
+                  <div key={option.id} className="h-32">
+                    <ActionGridButton
+                      title={option.name}
+                      price={option.price}
+                      selected={isSelected}
+                      variation={selectedMod?.variation}
+                      onClick={() =>
+                        handleModifierToggle(currentGroup, option.id, option.name, option.price)
+                      }
+                      onVariationChange={
+                        isSelected ? (v) => updateVariation(currentGroup.id, option.id, v) : undefined
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* FOOTER NAVIGATION */}
@@ -295,11 +327,10 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           disabled={currentGroupIndex === 0}
           className={`
                 flex-1 h-12 flex items-center justify-center font-bold uppercase tracking-wider rounded-xl transition-colors
-                ${
-                  currentGroupIndex === 0
-                    ? 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-600 cursor-not-allowed border border-transparent'
-                    : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700'
-                }
+                ${currentGroupIndex === 0
+              ? 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-600 cursor-not-allowed border border-transparent'
+              : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700'
+            }
             `}
         >
           <ChevronLeft className="mr-2" size={18} /> Previous
@@ -311,13 +342,12 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           disabled={!isStepValid}
           className={`
                 flex-[2] h-12 flex items-center justify-center font-bold uppercase tracking-wider rounded-xl shadow-lg transition-all
-                ${
-                  !isStepValid
-                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-50'
-                    : showSkip
-                      ? 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-600' // Skip Style
-                      : 'bg-lime-500 hover:bg-lime-400 text-zinc-950 shadow-[0_0_15px_rgba(132,204,22,0.4)] active:scale-[0.98]' // Next/Add Style
-                }
+                ${!isStepValid
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-50'
+              : showSkip
+                ? 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-600' // Skip Style
+                : 'bg-lime-500 hover:bg-lime-400 text-zinc-950 shadow-[0_0_15px_rgba(132,204,22,0.4)] active:scale-[0.98]' // Next/Add Style
+            }
              `}
         >
           {isLastStep ? (

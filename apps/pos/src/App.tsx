@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OrderProvider } from './context/OrderContext';
+import { CheckoutProvider } from './context/CheckoutContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { useMenuData } from './hooks/useMenuData';
 import { useIdleTimer } from './hooks/useIdleTimer';
@@ -23,6 +24,7 @@ import Header from './components/layout/Header';
 import ModalManager from './components/layout/ModalManager';
 import LoginScreen from './components/LoginScreen';
 import { AuthService } from './services/AuthService';
+import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
 const AppContent = ({ onLogout }: { onLogout: () => void }) => {
   const { theme, toggleTheme } = useTheme();
@@ -205,7 +207,19 @@ const AppContent = ({ onLogout }: { onLogout: () => void }) => {
 };
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000, // 2 minutes before data is considered stale
+      gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+      retry: (failureCount, error: any) => {
+        if (error?.status === 404 || error?.status === 401) return false;
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: false, // Avoid excessive refetching in POS environment
+    },
+  },
+});
 
 const AppShell = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -241,13 +255,17 @@ const AppShell = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <OrderProvider>
-        <AppShell />
-      </OrderProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <OrderProvider>
+          <CheckoutProvider>
+            <AppShell />
+          </CheckoutProvider>
+        </OrderProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

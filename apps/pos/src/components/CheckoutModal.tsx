@@ -21,8 +21,11 @@ import {
   Trash2,
   Plus,
   Coins,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { OrderItem, PaymentMethod } from '../types';
+import { useCheckout } from '../context/CheckoutContext';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -58,6 +61,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onEditItem,
   onRemoveItem,
 }) => {
+  const { isProcessing, error: checkoutError } = useCheckout();
   const [step, setStep] = useState<CheckoutStep>('ORDER_REVIEW');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
 
@@ -580,23 +584,39 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
 
         <div className="mt-8 w-full flex flex-col gap-4">
+          {checkoutError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/50 p-4 rounded-xl flex items-center space-x-3 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle size={20} />
+              <span className="text-sm font-bold">{checkoutError}</span>
+            </div>
+          )}
           <button
             onClick={handleStandardConfirm}
             disabled={
+              isProcessing ||
               (selectedMethod === 'Cash' && changeDue < 0) ||
               (selectedMethod === 'Clip' && tenderedValue.length === 0)
             }
-            className={`w-full h-24 rounded-2xl font-bold uppercase tracking-widest text-2xl transition-all shadow-xl hover:scale-[1.01] active:scale-[0.99] 
-                        ${
-                          (selectedMethod === 'Cash' && changeDue < 0) ||
-                          (selectedMethod === 'Clip' && tenderedValue.length === 0)
-                            ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none'
-                            : isRefund
-                              ? 'bg-red-500 text-white hover:bg-red-400'
-                              : 'bg-lime-500 text-zinc-950 hover:bg-lime-400 shadow-lime-500/30'
-                        }`}
+            className={`w-full h-24 rounded-2xl font-bold uppercase tracking-widest text-2xl transition-all shadow-xl hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center
+                        ${isProcessing ||
+                (selectedMethod === 'Cash' && changeDue < 0) ||
+                (selectedMethod === 'Clip' && tenderedValue.length === 0)
+                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none'
+                : isRefund
+                  ? 'bg-red-500 text-white hover:bg-red-400'
+                  : 'bg-lime-500 text-zinc-950 hover:bg-lime-400 shadow-lime-500/30'
+              }`}
           >
-            {selectedMethod === 'Clip' ? 'Process Card & Close' : 'Confirm Payment'}
+            {isProcessing ? (
+              <>
+                <Loader2 className="animate-spin mr-3" size={32} />
+                <span>Processing...</span>
+              </>
+            ) : selectedMethod === 'Clip' ? (
+              'Process Card & Close'
+            ) : (
+              'Confirm Payment'
+            )}
           </button>
           <button
             onClick={() => {
@@ -757,11 +777,10 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
               onClick={handleFinalizeSplit}
               disabled={splitRemaining > 0.01}
               className={`flex-1 rounded-2xl font-bold uppercase tracking-widest text-xl transition-all shadow-xl
-                        ${
-                          splitRemaining > 0.01
-                            ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none'
-                            : 'bg-lime-500 hover:bg-lime-400 text-zinc-950'
-                        }
+                        ${splitRemaining > 0.01
+                  ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none'
+                  : 'bg-lime-500 hover:bg-lime-400 text-zinc-950'
+                }
                     `}
             >
               Finalize Order

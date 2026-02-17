@@ -451,27 +451,9 @@ export const OrderProvider = ({ children }: OrderProviderProps) => {
     };
   }, []);
 
-  // 2. Emit New Orders
-  const prevActiveOrdersRef = useRef<SavedOrder[]>([]);
-  useEffect(() => {
-    // Detect added orders
-    const prevOrders = prevActiveOrdersRef.current;
-    const currentOrders = state.activeOrders;
-
-    // Find orders in current that are NOT in prev
-    const newOrders = currentOrders.filter(o => !prevOrders.some(p => p.id === o.id));
-
-    // Emit them via Socket if they are "Fresh" (created recently, preventing bulk emit on reload)
-    newOrders.forEach(order => {
-      const age = Date.now() - order.createdAt;
-      if (age < 5000) { // Only emit orders created in last 5 seconds
-        console.log('📡 Emitting New Order to Socket:', order.id);
-        socketManager.emit('order:created', order);
-      }
-    });
-
-    prevActiveOrdersRef.current = currentOrders;
-  }, [state.activeOrders]);
+  // 2. Emit New Orders (REMOVED: Handled by Backend Checkout API)
+  // const prevActiveOrdersRef = useRef<SavedOrder[]>([]);
+  // useEffect(() => { ... }, [state.activeOrders]);
 
   // 3. Listen for Status Updates
   useEffect(() => {

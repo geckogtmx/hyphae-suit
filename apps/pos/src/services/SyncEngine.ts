@@ -9,7 +9,7 @@
 import { getDB, SyncQueueItem } from '../lib/indexedDB';
 import { SavedOrder } from '../types';
 
-const API_URL = 'http://localhost:3001'; // Fallback to same mock var
+const API_URL = 'http://127.0.0.1:3001'; // Fallback to same mock var
 
 export class SyncEngine {
   private static instance: SyncEngine;

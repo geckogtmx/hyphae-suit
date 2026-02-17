@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
 class SocketManager {
     private socket: Socket | null = null;
@@ -20,11 +20,15 @@ class SocketManager {
     public connect(storeId: string = 'default-store') {
         if (this.socket?.connected) return;
 
-        console.log('🔌 Connecting to Socket Server at', SOCKET_URL);
+        const url = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
+        console.log('🔌 Connecting to Socket Server at', url);
 
-        this.socket = io(SOCKET_URL, {
+        this.socket = io(url, {
             transports: ['websocket'],
             autoConnect: true,
+            auth: {
+                token: import.meta.env.VITE_HYPHAE_API_KEY || 'dev-secret-123'
+            }
         });
 
         this.socket.on('connect', () => {

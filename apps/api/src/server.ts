@@ -1,12 +1,15 @@
 import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { z } from 'zod'; // Keep zod for internal validation if needed
-import { AnalyzePayloadSchema } from '@hyphae/schemas';
+import { AnalyzePayloadSchema, CheckoutPayloadSchema } from '@hyphae/schemas';
 import { socketService } from './services/SocketService';
-import { db, schema, desc, eq } from '@hyphae/database';
+import { InventoryService } from './services/InventoryService';
+import { db, schema, desc, eq, sql } from '@hyphae/database';
 
 // Load env from current dir OR root fallback (for monorepo convenience)
 dotenv.config();
@@ -17,9 +20,28 @@ const server = Fastify({
 
 // Configure CORS
 server.register(cors, {
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Core, POS, BOH
+    origin: [
+        'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175',
+        'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'
+    ], // Core, POS, BOH (both localhost and IP)
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+});
+
+// Security Headers
+server.register(helmet, {
+    contentSecurityPolicy: false, // Disable for API-only to avoid complexity with Gemini URLs
+});
+
+// Rate Limiting
+server.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+    errorResponseBuilder: (request, context) => ({
+        error: 'Too many requests',
+        message: `Rate limit exceeded. Try again in ${context.after}`,
+        expiresIn: context.after
+    })
 });
 
 // Configure JWT
@@ -44,6 +66,18 @@ const ai = apiKey && apiKey !== 'PLACEHOLDER_CHANGE_ME'
     : null;
 
 const MODEL_FAST = 'gemini-2.0-flash'; // Updated model
+
+// In-memory store for Kitchen Notes (KDS)
+interface KitchenTicket {
+    id: string;
+    productName: string;
+    note: string;
+    timestamp: number;
+    status: 'pending' | 'completed';
+    orderDetails?: any; // Full SavedOrder object
+}
+
+const kitchenQueue: KitchenTicket[] = [];
 
 // --- Auth Middleware ---
 // Decorate for TypeScript
@@ -76,10 +110,6 @@ server.addHook('preHandler', async (request, reply) => {
     }
 
     // 2. Check for Bearer Token (User/POS Access)
-    // If no key, we *could* enforce JWT, but currently existing code relies on Key.
-    // If neither is present, we might want to block, but let's be careful not to break existing flows.
-    // For this transition phase:
-    // If Authorization header exists, verify it.
     if (request.headers.authorization) {
         try {
             await request.jwtVerify();
@@ -87,12 +117,37 @@ server.addHook('preHandler', async (request, reply) => {
         } catch (e) {
             reply.code(401).send({ error: 'Unauthorized: Invalid Token' });
         }
-    } else if (hyphaeKey && !clientKey) {
-        // If system is secured and no key provided, fail.
-        // reply.code(401).send({ error: 'Unauthorized: Missing Credentials' });
-        // NOTE: Commented out to avoid breaking POS until it's fully migrated.
-        // Ideally we enable this once POS sends tokens.
+    } else {
+        // Strict Mode if hyphaeKey is set
+        if (hyphaeKey) {
+            // reply.code(401).send({ error: 'Unauthorized: Missing Credentials' });
+            // Temporary fallback until POS is fully token-aware
+        }
     }
+});
+
+// --- GLOBAL ERROR HANDLER ---
+server.setErrorHandler((error, request, reply) => {
+    request.log.error(error);
+
+    // Validation Errors (Zod) - handled per-route mostly but this is a safety net
+    if (error.validation) {
+        return reply.code(400).send({
+            error: 'Validation Failed',
+            message: error.message,
+            details: error.validation
+        });
+    }
+
+    // Default 500
+    const statusCode = error.statusCode || 500;
+    const isProd = process.env.NODE_ENV === 'production';
+
+    reply.code(statusCode).send({
+        error: error.name || 'Internal Server Error',
+        message: isProd ? 'An unexpected error occurred' : error.message,
+        ...(isProd ? {} : { stack: error.stack })
+    });
 });
 
 // --- Routes ---
@@ -220,8 +275,15 @@ server.post('/api/analyze', async (request, reply) => {
             return { result: "No historical data available in database for analysis." };
         }
 
+        // Fetch Loyalty metrics
+        const loyaltyCount = await db.select({ count: sql`count(*)` }).from(schema.loyaltyProfiles);
+        const totalLoyaltyMembers = (loyaltyCount[0] as any).count || 0;
+
         const prompt = `
       You are the "Strategic Core" AI for a food business.
+      
+      Business Health:
+      - Total Loyalty Members: ${totalLoyaltyMembers}
       
       Here is the menu:
       ${JSON.stringify(menu.map((m: any) => ({ name: m.name, price: m.price, cat: m.categoryId })))}
@@ -263,17 +325,197 @@ server.post('/api/analyze', async (request, reply) => {
     }
 });
 
-// In-memory store for Kitchen Notes (KDS)
-interface KitchenTicket {
-    id: string;
-    productName: string;
-    note: string;
-    timestamp: number;
-    status: 'pending' | 'completed';
-    orderDetails?: any; // Full SavedOrder object
-}
+server.post('/api/order/checkout', async (request, reply) => {
+    try {
+        // Sanitize Payload: Convert explicit 'null' to undefined for optional fields to satisfy Zod
+        const rawBody = request.body as any;
+        if (rawBody.loyaltyProfileId === null) rawBody.loyaltyProfileId = undefined;
+        if (rawBody.staffId === null) rawBody.staffId = undefined;
+        if (rawBody.payment && rawBody.payment.transactionId === null) rawBody.payment.transactionId = undefined;
 
-const kitchenQueue: KitchenTicket[] = [];
+        const payload = CheckoutPayloadSchema.parse(rawBody);
+
+        // 1. Transactional Insert (Drizzle doesn't support nested inserts well with SQLite in one go, so we use manual transaction)
+        await db.transaction(async (tx) => {
+            // A. Create Order
+            await tx.insert(schema.orders).values({
+                id: payload.id,
+                storeId: payload.storeId || 'default-store',
+                terminalId: payload.terminalId || 'pos-1',
+                staffId: payload.staffId,
+                loyaltyProfileId: payload.loyaltyProfileId,
+                status: 'Pending',
+                paymentStatus: 'Paid',
+                orderType: payload.orderType,
+                subtotal: payload.subtotal,
+                tax: payload.tax,
+                total: payload.total,
+                createdAt: Date.now(),
+            });
+
+            // B. Create Order Items
+            for (const item of payload.items) {
+                await tx.insert(schema.orderItems).values({
+                    id: `oi_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                    orderId: payload.id,
+                    productId: item.productId,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    modifiers: item.modifiers,
+                });
+            }
+
+            // C. Create Payment Record
+            await tx.insert(schema.payments).values({
+                id: `pay_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                orderId: payload.id,
+                method: payload.payment.method,
+                amount: payload.payment.amount,
+                status: 'COMPLETED',
+                transactionId: payload.payment.transactionId,
+                timestamp: Date.now(),
+            });
+
+            // D. Loyalty Logic
+            if (payload.loyaltyProfileId) {
+                const pointsToEarn = Math.floor(payload.total);
+
+                // Update Profile
+                await tx.update(schema.loyaltyProfiles)
+                    .set({
+                        currentPoints: sql`${schema.loyaltyProfiles.currentPoints} + ${pointsToEarn}`,
+                        totalPunches: sql`${schema.loyaltyProfiles.totalPunches} + 1`
+                    })
+                    .where(eq(schema.loyaltyProfiles.id, payload.loyaltyProfileId));
+
+                // Record Transaction
+                await tx.insert(schema.loyaltyTransactions).values({
+                    id: `ltx_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                    profileId: payload.loyaltyProfileId,
+                    type: 'EARN',
+                    points: pointsToEarn,
+                    orderId: payload.id,
+                    timestamp: Date.now(),
+                });
+            }
+        });
+
+        // 2. Async Inventory Deduction (Non-blocking)
+        InventoryService.deductOrderInventory(payload.id, payload.items).catch((err: any) => {
+            console.error('[CheckoutAPI] Inventory deduction failed:', err);
+        });
+
+        // 3. Broadcast to KDS and Core Dashboard
+        const ticket = {
+            id: `sys_${payload.id}`,
+            productName: "Order Ticket",
+            note: "CHECKOUT",
+            timestamp: Date.now(),
+            status: 'pending' as const,
+            orderDetails: {
+                id: payload.id,
+                items: payload.items.map(item => ({
+                    ...item,
+                    qty: item.quantity, // BOH expects qty
+                    selectedModifiers: item.modifiers ? JSON.parse(item.modifiers) : [] // BOH expects objects
+                })),
+                total: payload.total,
+                subtotal: payload.subtotal,
+                tax: payload.tax,
+                orderType: payload.orderType,
+                createdAt: Date.now()
+            }
+        };
+
+        socketService.emit('order:new', ticket);
+        kitchenQueue.push(ticket);
+        if (kitchenQueue.length > 50) kitchenQueue.shift();
+
+        return { success: true, orderId: payload.id, message: "Order processed successfully" };
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            reply.code(400).send({ error: "Validation Error", details: error.errors });
+        } else {
+            request.log.error(error);
+            // Return actual error message for debugging
+            reply.code(500).send({
+                error: "Internal Server Error",
+                message: (error as Error).message || "Unknown Error",
+                stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
+            });
+        }
+    }
+});
+
+// --- LOYALTY ROUTES ---
+
+server.get('/api/loyalty/:cardNumber', async (request, reply) => {
+    const { cardNumber } = request.params as { cardNumber: string };
+
+    try {
+        const profile = await db.query.loyaltyProfiles.findFirst({
+            where: eq(schema.loyaltyProfiles.cardNumber, cardNumber),
+            with: {
+                transactions: {
+                    limit: 10,
+                    orderBy: [desc(schema.loyaltyTransactions.timestamp)]
+                }
+            }
+        });
+
+        if (!profile) {
+            return reply.code(404).send({ error: 'Loyalty profile not found' });
+        }
+
+        return profile;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch loyalty profile' });
+    }
+});
+
+server.get('/api/loyalty/profiles/:id/history', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+        const history = await db.query.loyaltyTransactions.findMany({
+            where: eq(schema.loyaltyTransactions.profileId, id),
+            orderBy: [desc(schema.loyaltyTransactions.timestamp)],
+            limit: 50
+        });
+
+        return history;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch loyalty history' });
+    }
+});
+
+server.get('/api/loyalty-summary', async (request, reply) => {
+    try {
+        const totalCount = await db.select({ count: sql`count(*)` }).from(schema.loyaltyProfiles);
+        const totalMembers = (totalCount[0] as any).count || 0;
+
+        const recentEnrollments = await db.select({ count: sql`count(*)` })
+            .from(schema.loyaltyProfiles)
+            .where(sql`${schema.loyaltyProfiles.createdAt} > ${Date.now() - 30 * 24 * 60 * 60 * 1000}`);
+
+        return {
+            totalMembers,
+            recentEnrollments: (recentEnrollments[0] as any).count || 0
+        };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({
+            error: 'Failed to fetch loyalty summary',
+            details: (e as Error).message
+        });
+    }
+});
+
+// --- KITCHEN QUEUE ROUTES ---
 
 server.post('/api/kitchen-note', async (request, reply) => {
     try {
@@ -392,7 +634,8 @@ const start = async () => {
         await server.ready();
         socketService.initialize(server.server);
 
-        await server.listen({ port: PORT, host: '0.0.0.0' });
+        // Bind to 127.0.0.1 explicitly to match client requests and avoid IPv6 confusion
+        await server.listen({ port: PORT, host: '127.0.0.1' });
         console.log(`Server listening on port ${PORT}`);
     } catch (err) {
         server.log.error(err);

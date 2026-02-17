@@ -2,7 +2,7 @@
 
 import { AnalyzePayload } from '@hyphae/schemas';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://127.0.0.1:3001/api';
 const API_KEY = import.meta.env.VITE_HYPHAE_API_KEY;
 
 export const ApiClient = {
@@ -60,6 +60,27 @@ export const ApiClient = {
             return data.result;
         } catch (error) {
             return productName.substring(0, 10); // Fallback
+        }
+    },
+
+    async getLoyaltySummary() {
+        try {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (API_KEY) {
+                headers['x-api-key'] = API_KEY;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/loyalty-summary`, {
+                headers,
+            });
+
+            if (!response.ok) throw new Error('API Error');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch loyalty summary', error);
+            return { totalMembers: 0, recentEnrollments: 0 }; // Fallback
         }
     }
 };

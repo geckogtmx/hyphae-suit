@@ -17,9 +17,12 @@ import {
   RECIPES,
   CONCEPTS,
   CATEGORIES,
-  PRODUCTS
+  PRODUCTS,
+  LOYALTY_PROFILES,
+  LOYALTY_CARDS,
+  LOYALTY_TRANSACTIONS
 } from './mock_data';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { generateMockOrders } from './seed_orders';
 
 const seed = async () => {
@@ -219,7 +222,37 @@ const seed = async () => {
       await db.insert(schema.users).values(u).onConflictDoNothing();
     }
 
-    // 9. Generate Historical Orders (For Dashboard/Analysis)
+    // 9. Seed Loyalty Profiles
+    console.log(`💎 Seeding ${LOYALTY_PROFILES.length} Loyalty Profiles...`);
+    for (const profile of LOYALTY_PROFILES) {
+      const activeCard = LOYALTY_CARDS.find(c => c.userId === profile.id);
+      await db.insert(schema.loyaltyProfiles).values({
+        id: profile.id,
+        name: profile.name,
+        phone: profile.phone,
+        email: `${profile.name.toLowerCase().replace(' ', '.')}@example.com`,
+        cardNumber: activeCard?.code || `MOCK_${profile.id}`,
+        currentPoints: profile.currentPoints,
+        totalPunches: profile.totalPunches,
+        currentTierId: profile.currentTierId,
+        createdAt: profile.joinedDate || Date.now()
+      }).onConflictDoNothing();
+    }
+
+    // 10. Seed Loyalty Transactions
+    console.log(`💸 Seeding ${LOYALTY_TRANSACTIONS.length} Loyalty Transactions...`);
+    for (const ltx of LOYALTY_TRANSACTIONS) {
+      await db.insert(schema.loyaltyTransactions).values({
+        id: ltx.id,
+        profileId: ltx.customerId,
+        type: ltx.type,
+        points: ltx.points,
+        orderId: ltx.orderId,
+        timestamp: ltx.timestamp
+      }).onConflictDoNothing();
+    }
+
+    // 11. Generate Historical Orders (For Dashboard/Analysis)
     await generateMockOrders(30);
 
   } catch (error) {
