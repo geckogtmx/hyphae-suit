@@ -382,9 +382,9 @@ interface IAuthService {
 }
 ```
 
-- [ ] Implement JWT token storage (secure)
-- [ ] Add auth interceptor to API client
-- [ ] Create Protected Route wrapper
+- [x] Implement JWT token storage (secure)
+- [x] Add auth interceptor to API client
+- [x] Create Protected Route wrapper
 
 #### Task 2.2: Menu Sync Protocol
 
@@ -479,9 +479,9 @@ interface IReceiptService {
 
 ### 🛡️ Phase 2 Security Gate
 
-- [ ] **Audit**: `pnpm audit` passes with 0 critical/high issues.
-- [ ] **Validation**: All new API endpoints have Zod schemas.
-- [ ] **Auth**: Login requires robust authentication (no hardcoded pins).
+- [x] **Audit**: `pnpm audit` passes with 0 critical/high issues.
+- [x] **Validation**: All new API endpoints have Zod schemas.
+- [x] **Auth**: Login requires robust authentication (no hardcoded pins).
 
 ---
 

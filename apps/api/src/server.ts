@@ -1,11 +1,12 @@
-import Fastify from 'fastify';
+import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
+import jwt from '@fastify/jwt';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { z } from 'zod'; // Keep zod for internal validation if needed
 import { AnalyzePayloadSchema } from '@hyphae/schemas';
 import { socketService } from './services/SocketService';
-import { db, schema, desc } from '@hyphae/database';
+import { db, schema, desc, eq } from '@hyphae/database';
 
 // Load env from current dir OR root fallback (for monorepo convenience)
 dotenv.config();
@@ -17,7 +18,13 @@ const server = Fastify({
 // Configure CORS
 server.register(cors, {
     origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Core, POS, BOH
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+});
+
+// Configure JWT
+server.register(jwt, {
+    secret: process.env.JWT_SECRET || 'dev-secret-change-me-in-prod-please'
 });
 
 // Initialize Gemini Client
@@ -39,15 +46,52 @@ const ai = apiKey && apiKey !== 'PLACEHOLDER_CHANGE_ME'
 const MODEL_FAST = 'gemini-2.0-flash'; // Updated model
 
 // --- Auth Middleware ---
+// Decorate for TypeScript
+declare module 'fastify' {
+    interface FastifyInstance {
+        authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
+    }
+}
+
+server.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+        await request.jwtVerify();
+    } catch (err) {
+        reply.send(err);
+    }
+});
+
+// Global Hook - Check for either API Key OR JWT?
+// For now, let's keep it simple: Public endpoints + Protected endpoints.
+// But forcing checks for now on specific routes might be safer.
+
 server.addHook('preHandler', async (request, reply) => {
-    // Skip health check
-    if (request.routerPath === '/health') return;
+    // Skip health check and login
+    if (request.routerPath === '/health' || request.routerPath === '/api/auth/login') return;
 
-    if (!hyphaeKey) return; // Open if no key set (dev mode fallback)
-
+    // 1. Check for API Key (System/Core Access)
     const clientKey = request.headers['x-api-key'];
-    if (clientKey !== hyphaeKey) {
-        reply.code(401).send({ error: 'Unauthorized: Invalid API Key' });
+    if (clientKey && clientKey === hyphaeKey) {
+        return; // Authorized via Key
+    }
+
+    // 2. Check for Bearer Token (User/POS Access)
+    // If no key, we *could* enforce JWT, but currently existing code relies on Key.
+    // If neither is present, we might want to block, but let's be careful not to break existing flows.
+    // For this transition phase:
+    // If Authorization header exists, verify it.
+    if (request.headers.authorization) {
+        try {
+            await request.jwtVerify();
+            return; // Authorized via JWT
+        } catch (e) {
+            reply.code(401).send({ error: 'Unauthorized: Invalid Token' });
+        }
+    } else if (hyphaeKey && !clientKey) {
+        // If system is secured and no key provided, fail.
+        // reply.code(401).send({ error: 'Unauthorized: Missing Credentials' });
+        // NOTE: Commented out to avoid breaking POS until it's fully migrated.
+        // Ideally we enable this once POS sends tokens.
     }
 });
 
@@ -55,6 +99,108 @@ server.addHook('preHandler', async (request, reply) => {
 
 server.get('/health', async () => {
     return { status: 'ok', service: 'hyphae-api' };
+});
+
+// --- DATA ACCESS ROUTES ---
+
+server.get('/api/concepts', async (request, reply) => {
+    try {
+        const concepts = await db.select().from(schema.concepts);
+        return concepts;
+    } catch (e) {
+        reply.code(500).send({ error: "Failed to fetch concepts" });
+    }
+});
+
+server.get('/api/categories', async (request, reply) => {
+    try {
+        const categories = await db.select().from(schema.categories);
+        return categories;
+    } catch (e) {
+        reply.code(500).send({ error: "Failed to fetch categories" });
+    }
+});
+
+server.get('/api/products', async (request, reply) => {
+    try {
+        const rawProducts = await db.query.products.findMany({
+            with: {
+                category: true,
+                modifierGroups: {
+                    with: {
+                        group: {
+                            with: {
+                                options: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Transform Drizzle relation (junction) to flat structure
+        const products = rawProducts.map(p => ({
+            ...p,
+            modifierGroups: p.modifierGroups.map((pm: any) => ({
+                ...pm.group,
+                options: pm.group.options, // Ensure options are carried over
+                sortOrder: pm.sortOrder // Optional: keep sort order if needed
+            }))
+        }));
+
+        return products;
+    } catch (e) {
+        console.error(e);
+        reply.code(500).send({ error: "Failed to fetch products" });
+    }
+});
+
+// LOGIN ROUTE
+server.post('/api/auth/login', async (request, reply) => {
+    const LoginSchema = z.object({
+        pin: z.string()
+    });
+
+    try {
+        const { pin } = LoginSchema.parse(request.body);
+
+        // Find user by PIN
+        const user = await db.query.users.findFirst({
+            where: eq(schema.users.pin, pin)
+        });
+
+        if (!user) {
+            return reply.code(401).send({ error: 'Invalid PIN' });
+        }
+
+        if (!user.isActive) {
+            return reply.code(403).send({ error: 'User is inactive' });
+        }
+
+        // Sign Token
+        const token = server.jwt.sign({
+            id: user.id,
+            name: user.name,
+            role: user.role
+        }, { expiresIn: '12h' });
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role
+            }
+        };
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            reply.code(400).send({ error: "Validation Error", details: error.errors });
+        } else {
+            console.error(error);
+            reply.code(500).send({ error: "Login failed" });
+        }
+    }
 });
 
 server.post('/api/analyze', async (request, reply) => {

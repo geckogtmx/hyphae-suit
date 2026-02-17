@@ -207,7 +207,19 @@ const seed = async () => {
 
     console.log('✅ Supply Chain Seeding Complete!');
 
-    // 8. Generate Historical Orders (For Dashboard/Analysis)
+    // 8. Seed Users
+    console.log(`👤 Seeding Users...`);
+    const MOCK_USERS = [
+      { id: 'u_admin', name: 'Admin User', pin: '0000', role: 'admin' },
+      { id: 'u_staff', name: 'Staff Member', pin: '1234', role: 'staff' },
+      { id: 'u_mgr', name: 'Manager', pin: '9999', role: 'manager' }
+    ];
+
+    for (const u of MOCK_USERS) {
+      await db.insert(schema.users).values(u).onConflictDoNothing();
+    }
+
+    // 9. Generate Historical Orders (For Dashboard/Analysis)
     await generateMockOrders(30);
 
   } catch (error) {

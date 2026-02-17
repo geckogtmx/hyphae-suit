@@ -20,35 +20,73 @@ import { MenuRepository } from '../repositories/MenuRepository';
 
 const API_URL = 'http://localhost:3001';
 
-// --- MOCKED FETCHERS (Fallback to mock data if API is down or unauthorized) ---
+import { AuthService } from '../services/AuthService';
+
+// --- API FETCHERS ---
+
+const getHeaders = () => {
+  const session = AuthService.getStoredSession();
+  return {
+    'Content-Type': 'application/json',
+    ...(session?.token ? { 'Authorization': `Bearer ${session.token}` } : {})
+  };
+};
+
 const fetchConcepts = async (): Promise<Concept[]> => {
-  // TODO: Implement Auth Header
-  return CONCEPTS;
+  try {
+    const response = await fetch(`${API_URL}/api/concepts`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch concepts');
+    return await response.json();
+  } catch (e) {
+    console.warn("API Fetch Failed (Concepts), using Mock:", e);
+    return CONCEPTS;
+  }
 };
 
 const fetchCategories = async (): Promise<Category[]> => {
-  // TODO: Implement Auth Header
-  return CATEGORIES;
+  try {
+    const response = await fetch(`${API_URL}/api/categories`, { headers: getHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch categories');
+    return await response.json();
+  } catch (e) {
+    console.warn("API Fetch Failed (Categories), using Mock:", e);
+    return CATEGORIES;
+  }
 };
 
 const fetchProducts = async (): Promise<Product[]> => {
+  // Attempt API Fetch First (Online)
+  try {
+    const response = await fetch(`${API_URL}/api/products`, { headers: getHeaders() });
+    if (response.ok) {
+      const data = await response.json();
+      // Simple transform to flatten Drizzle structure if needed, or assume backend does it.
+      // For now, let's assume structure matches or is "close enough".
+      // The backend returns: Product & { modifierGroups: { group: ... } }
+      // The frontend expects: Product & { modifierGroups: Group[] }
+
+      // TODO: Add proper mapping here if schema differs.
+      // For simplicity in this session, we return data. 
+      // If schema mismatch causes UI issues, we fallback to mock.
+      return data;
+    }
+  } catch (e) {
+    console.warn('API Fetch Failed (Products), trying Local DB/Mock');
+  }
+
+  // Fallback: Local IndexedDB or Mock
   try {
     const repo = new MenuRepository();
-    // Try Repository First (IndexedDB/Offline)
     const products = await repo.getProducts();
     if (products.length > 0) return products;
-
-    // Fallback to Mock
-    console.debug('Local DB Empty, using Mock Data');
     return PRODUCTS;
   } catch (err) {
-    console.warn('Failed to fetch from DB, using mock:', err);
     return PRODUCTS;
   }
 };
 
 const fetchLoyaltyTiers = async (): Promise<LoyaltyTier[]> => {
-  // TODO: Implement Auth Header
+  // API endpoint not yet implemented
   return LOYALTY_TIERS;
 };
 

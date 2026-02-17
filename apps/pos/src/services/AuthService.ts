@@ -11,42 +11,41 @@ export interface AuthResult {
 const SESSION_KEY = 'hyphae_pos_session';
 
 export const AuthService = {
-    /**
-     * Authenticate staff using PIN.
-     * Currently a stub that mocks successful login for any 4-digit PIN.
-     */
     async loginWithPin(pin: string): Promise<AuthResult> {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+            const response = await fetch('http://localhost:3001/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin })
+            });
 
-        if (pin.length !== 4) {
-            return { success: false, error: 'PIN must be 4 digits.' };
-        }
+            const data = await response.json();
 
-        // MOCK: Accept any 4-digit PIN, assign 'Manager' role for now
-        const session = {
-            token: 'mock-jwt-token-12345',
-            staff: {
-                id: 'staff-001',
-                name: 'Shift Lead',
-                role: 'Manager' as const
+            if (!response.ok) {
+                return { success: false, error: data.error || 'Login failed' };
             }
-        };
 
-        // Persist session
-        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+            const session = {
+                token: data.token,
+                staff: data.user
+            };
 
-        return {
-            success: true,
-            ...session
-        };
+            // Persist session
+            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+            return {
+                success: true,
+                ...session
+            };
+        } catch (e) {
+            console.error("Login Error:", e);
+            return { success: false, error: 'Network Connection Failed' };
+        }
     },
 
-    /**
-     * Validate current session token.
-     */
     async validateSession(token: string): Promise<boolean> {
-        return token === 'mock-jwt-token-12345';
+        // Optimistic validation. In prod, verify with API /auth/me
+        return typeof token === 'string' && token.length > 10;
     },
 
     /**

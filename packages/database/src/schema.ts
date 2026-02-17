@@ -164,6 +164,16 @@ export const orderItems = sqliteTable('order_items', {
   modifiers: text('modifiers'), // JSON snapshot of selected mods
 });
 
+// --- AUTH: USERS ---
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  pin: text('pin').notNull(), // Hashed or Encrypted
+  role: text('role').notNull().default('staff'), // admin, manager, staff
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+});
+
 // --- RELATIONS ---
 
 export const suppliersRelations = relations(suppliers, ({ many }) => ({

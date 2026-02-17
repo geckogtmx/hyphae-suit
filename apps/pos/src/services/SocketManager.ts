@@ -23,7 +23,7 @@ class SocketManager {
         console.log('🔌 Connecting to Socket Server at', SOCKET_URL);
 
         // Initialize socket but don't connect automatically
-        this.socket = io(`${SOCKET_URL}/pos`, {
+        this.socket = io(SOCKET_URL, {
             transports: ['websocket'],
             autoConnect: false,
         });

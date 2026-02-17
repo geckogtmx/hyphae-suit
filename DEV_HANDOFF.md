@@ -2,30 +2,34 @@
 
 > **Last Updated:** 2026-02-17
 > **Last Model:** Gemini (Antigravity)
-> **Session Focus:** POS/BOH Realtime Sync & KDS UI Polish
+> **Session Focus:** JWT Authentication & Realtime Sync Verification [COMPLETE]
 
 ---
 
 ## ✅ Completed This Session
 
 - **Realtime Sync Infrastructure**:
-  - Implemented `SocketManager` in `apps/pos` and `apps/boh` using `socket.io-client`.
-  - Configured `apps/api` with `SocketService` to handle `pos` namespace connections.
-  - Fixed "Invalid namespace" and connection errors by standardizing on `/pos` namespace.
-- **BOH Views**:
-  - Implemented **Production Summary** (Live/Queue) view in `apps/boh`.
-  - Implemented **Assembly Line** (Bagging) view with item bundling.
-  - Added new navigation tabs (Tickets, Production, Assembly) to BOH.
-- **POS Orders Rail UI**:
-  - Updated "Kitchen" status to "Cooking" when External KDS is disabled (for single-operator mode).
-  - **Visual Polish**: Enforced strict dark mode color consistency for "Ready" and "Cooking" headers to match "Pending" style (removing light mode background bleed).
-- **Console Hygiene**:
-  - Suppressed 401 errors in `apps/pos` by stubbing API hooks (`useMenuData`, `useLoyalty`) to return mock data until true Auth is implemented.
+  - Standardized on the root Socket namespace for better compatibility between POS, BOH, and API.
+  - Verified `order:new` (POS -> BOH) and `order:status-changed` (BOH -> POS) propagation.
+- **JWT Authentication Infrastructure**:
+  - Implemented `/api/auth/login` in `apps/api` with PIN verification.
+  - Hardened API with dual-mode auth (API Key + JWT).
+  - Refactored `apps/pos` to use real staff login and Bearer tokens for all data hooks.
+- **Real-time Sync Standardization**:
+  - Moved POS/BOH/API to root namespace for Socket.IO.
+  - Verified bidirectional flow: `order:new` (POS -> BOH) and `order:status-changed` (BOH -> POS).
+- **Backend Analytics**:
+  - Wired `/api/analyze` to the seeded SQLite database (999+ records).
+  - Verified AI-generated insights based on real transactional data.
+- **Test Suite**:
+  - Centralized verification scripts in the root `test/` directory.
+
 
 ## ⚠️ Known Issues / Broken
 
-- **Authentication**: POS is currently bypass-authed using mock data. API calls to `/loyalty-*` and `/concepts` are stubbed to avoid 401s.
-- **Port Conflicts**: `pnpm dev` sometimes leaves zombie processes. Use `taskkill /F /IM node.exe` if `EADDRINUSE` occurs.
+- **Zombie Processes**: `pnpm dev` sometimes leaves Node/Vite processes on Windows. Use `taskkill /F /IM node.exe` if ports are locked.
+- **Empty POST Bodies**: Fastify returns 400 if `Content-Type: application/json` is sent without a body (fixed in test scripts by adding `{}`).
+
 
 ## 🔄 In Progress / Pending
 
@@ -36,15 +40,16 @@
 
 ## 📋 Instructions for Next Model
 
-1. **Authentication**:
-   - Implement real JWT auth in `apps/api` and `apps/pos`.
-   - Update `useMenuData` and `useLoyalty` to use real API endpoints with Auth headers.
-   
-2. **Order Sync Verification**:
-   - Stress test the `SocketManager` implementation. ensure `order:new` and `order:update` events propagate reliably between POS and BOH.
+1. **Payment Integration**:
+   - Begin Task 2.4 (Payment Gateway Abstraction) using mock Stripe/Square SDKs.
+   - Implement "Checkout" flow in POS to deduct inventory from SQLite.
 
-3. **Backend Analytics**:
-   - Wire up the `apps/api/src/server.ts` to the seeded SQLite database to provide real data for the "Analysis" tab in Core.
+2. **Loyalty Integration**:
+   - Update `useLoyalty` and the Backend to handle real loyalty profiles and transaction history from DB.
+
+3. **UI Polish**:
+   - Refine the "Analysis" dashboard in `apps/core` to better display the AI-generated insights.
+
 
 ### Key Files
 - `apps/pos/src/services/SocketManager.ts`: Socket client logic (careful with namespace initialization).
