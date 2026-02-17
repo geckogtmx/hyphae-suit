@@ -1,7 +1,7 @@
 # GEMINI.md - Project Map & Source of Truth
 
 **Project**: Hyphae Suit Monorepo
-**Last Updated**: 2026-02-12
+**Last Updated**: 2026-02-17
 
 ## 1. Project Overview
 
@@ -64,7 +64,7 @@ The following rules are enforced across the entire monorepo:
 
 ## 6. Maintenance Log
 
-- **2026-02-17**: Completed POS Phase 3 (Backend Integration). Added Inventory Depletion, Loyalty System, and real-time checkout sync.
+- **2026-02-17**: Completed POS Phase 3 (Backend Integration). Added Inventory Depletion, Loyalty System, and real-time checkout sync. Resolved BOH routing duplication and standardized human-friendly Order IDs (P1-101). Fixed React infinite loops and missing `useCallback` imports.
 - **2026-02-12**: Consolidatd `GEMINI.md` to root.
 - **2026-02-12**: Ported "Product Builder" to Core; Created `@hyphae/schemas`.
 - **2026-01-20**: (POS) Phase 2 Inventory & Verification Complete.

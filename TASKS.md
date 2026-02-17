@@ -26,6 +26,11 @@
 ### 4. UI Polish & Analytics
 - [x] **Analysis Dashboard**: Refine UI in `apps/core` to better display AI-generated insights and loyalty metrics.
 
+### 5. Payment Hardware Hardening (Phase 2.1)
+- [x] **Fix API URL**: Ensure `OrderService.checkout` uses correct fallback for `VITE_API_URL`.
+- [x] **Cash Drawer**: Implement `CashDrawerService` stub and integrate into Cash payment flow.
+- [x] **Receipt Printing**: Implement `ReceiptService` stub and simulate print job on checkout.
+
 ---
 
 ## ✅ Completed (Recent)

@@ -342,14 +342,14 @@ server.post('/api/order/checkout', async (request, reply) => {
                 id: payload.id,
                 storeId: payload.storeId || 'default-store',
                 terminalId: payload.terminalId || 'pos-1',
-                staffId: payload.staffId,
-                loyaltyProfileId: payload.loyaltyProfileId,
+                staffId: payload.staffId || null,
+                loyaltyProfileId: payload.loyaltyProfileId || null,
                 status: 'Pending',
                 paymentStatus: 'Paid',
-                orderType: payload.orderType,
-                subtotal: payload.subtotal,
-                tax: payload.tax,
-                total: payload.total,
+                orderType: payload.orderType || 'DineIn',
+                subtotal: payload.subtotal || 0,
+                tax: payload.tax || 0,
+                total: payload.total || 0,
                 createdAt: Date.now(),
             });
 
@@ -359,10 +359,10 @@ server.post('/api/order/checkout', async (request, reply) => {
                     id: `oi_${Date.now()}_${Math.random().toString(36).substring(7)}`,
                     orderId: payload.id,
                     productId: item.productId,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    modifiers: item.modifiers,
+                    name: item.name || 'Unknown Item',
+                    price: item.price || 0,
+                    quantity: item.quantity || 1,
+                    modifiers: item.modifiers || null,
                 });
             }
 
@@ -371,9 +371,9 @@ server.post('/api/order/checkout', async (request, reply) => {
                 id: `pay_${Date.now()}_${Math.random().toString(36).substring(7)}`,
                 orderId: payload.id,
                 method: payload.payment.method,
-                amount: payload.payment.amount,
+                amount: payload.payment.amount || 0,
                 status: 'COMPLETED',
-                transactionId: payload.payment.transactionId,
+                transactionId: payload.payment.transactionId || null,
                 timestamp: Date.now(),
             });
 
@@ -406,32 +406,6 @@ server.post('/api/order/checkout', async (request, reply) => {
             console.error('[CheckoutAPI] Inventory deduction failed:', err);
         });
 
-        // 3. Broadcast to KDS and Core Dashboard
-        const ticket = {
-            id: `sys_${payload.id}`,
-            productName: "Order Ticket",
-            note: "CHECKOUT",
-            timestamp: Date.now(),
-            status: 'pending' as const,
-            orderDetails: {
-                id: payload.id,
-                items: payload.items.map(item => ({
-                    ...item,
-                    qty: item.quantity, // BOH expects qty
-                    selectedModifiers: item.modifiers ? JSON.parse(item.modifiers) : [] // BOH expects objects
-                })),
-                total: payload.total,
-                subtotal: payload.subtotal,
-                tax: payload.tax,
-                orderType: payload.orderType,
-                createdAt: Date.now()
-            }
-        };
-
-        socketService.emit('order:new', ticket);
-        kitchenQueue.push(ticket);
-        if (kitchenQueue.length > 50) kitchenQueue.shift();
-
         return { success: true, orderId: payload.id, message: "Order processed successfully" };
 
     } catch (error) {
@@ -439,6 +413,7 @@ server.post('/api/order/checkout', async (request, reply) => {
             reply.code(400).send({ error: "Validation Error", details: error.errors });
         } else {
             request.log.error(error);
+
             // Return actual error message for debugging
             reply.code(500).send({
                 error: "Internal Server Error",

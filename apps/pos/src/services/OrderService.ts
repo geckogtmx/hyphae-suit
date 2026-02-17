@@ -122,7 +122,10 @@ export class OrderService {
    */
   static async checkout(payload: any): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/order/checkout`, {
+      const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://127.0.0.1:3001/api';
+      const cleanUrl = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
+
+      const response = await fetch(`${cleanUrl}/order/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

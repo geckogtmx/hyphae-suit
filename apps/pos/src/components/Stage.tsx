@@ -5,13 +5,14 @@
  * @version 1.0.0
  * @last-updated 2026-01-20
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOrder } from '../context/OrderContext';
 import { useCheckout } from '../context/CheckoutContext';
 import { useMenuData } from '../hooks/useMenuData';
 import { Product, OrderItem, PaymentMethod } from '../types';
 import { OrderService } from '../services/OrderService';
 import { LoyaltyService } from '../services/LoyaltyService';
+import { receiptPrinter } from '../services/hardware/ReceiptService';
 import OrderBuilder from './OrderBuilder';
 import CheckoutModal from './CheckoutModal';
 import LoyaltyScreen from './LoyaltyScreen';
@@ -112,7 +113,7 @@ const Stage: React.FC<StageProps> = ({
     setIsTicketExpanded(false);
   };
 
-  const handleOrderComplete = (item: OrderItem) => {
+  const handleOrderComplete = useCallback((item: OrderItem) => {
     if (editingItem) {
       dispatch({ type: 'UPDATE_ITEM', payload: item });
     } else {
@@ -122,14 +123,18 @@ const Stage: React.FC<StageProps> = ({
     setBuildingProduct(null);
     setEditingItem(null);
     setBuildProgress({ current: 0, total: 0 });
-  };
+  }, [editingItem, dispatch]);
 
-  const handleOrderCancel = () => {
+  const handleOrderCancel = useCallback(() => {
     setMode('BROWSE');
     setBuildingProduct(null);
     setEditingItem(null);
     setBuildProgress({ current: 0, total: 0 });
-  };
+  }, []);
+
+  const handleBuildStepChange = useCallback((current: number, total: number) => {
+    setBuildProgress({ current, total });
+  }, []);
 
   const handleCancelEdit = () => {
     dispatch({ type: 'CANCEL_EDIT' });
@@ -146,7 +151,9 @@ const Stage: React.FC<StageProps> = ({
     tipAmount?: number
   ) => {
     // 1. Process local/mock payment via Checkout abstraction
-    const orderIdStub = `ord_${Date.now()}`;
+    const seq = state.activeOrders.length + state.completedOrders.length + 1;
+    const termId = "P1"; // Terminal 1 Shorthand
+    const orderIdStub = `${termId}-${100 + seq}`;
     const paymentResult = await processPayment(method, amountPaid, orderIdStub);
 
     if (!paymentResult.success) {
@@ -178,6 +185,8 @@ const Stage: React.FC<StageProps> = ({
     };
 
     // We don't necessarily need to block UI for API success, but let's log it
+    // But for Receipt Printing, we need the Order ID. The Mock `checkoutPayload` has it.
+
     OrderService.checkout(checkoutPayload).catch((err) => {
       console.error('[Stage] API Checkout Background Error:', err);
     });
@@ -186,6 +195,7 @@ const Stage: React.FC<StageProps> = ({
     dispatch({
       type: 'CREATE_ORDER',
       payload: {
+        id: orderIdStub,
         method,
         amountPaid,
         isFullPayment,
@@ -198,6 +208,26 @@ const Stage: React.FC<StageProps> = ({
         isLoyalty: !!state.loyaltyProfile,
       },
     });
+
+    // 4. Print Receipt
+    // Reconstruct a temporary SavedOrder object for the printer
+    const tempOrder = OrderService.createSavedOrder({
+      id: orderIdStub,
+      items: state.items,
+      subtotal: total,
+      tax: tax,
+      total: grandTotal,
+      amountPaid,
+      status: 'Pending',
+      paymentStatus: isFullPayment ? 'Paid' : 'Partial',
+      orderType: state.orderType,
+      staffId: 'staff_001',
+      storeId: 'store_001',
+      terminalId: 'term_001',
+      loyaltyProfile: state.loyaltyProfile
+    });
+
+    receiptPrinter.printReceipt(tempOrder).catch(console.error);
 
     setIsCheckoutOpen(false);
     setIsTicketExpanded(false);
@@ -447,7 +477,7 @@ const Stage: React.FC<StageProps> = ({
               editItem={editingItem || undefined}
               onComplete={handleOrderComplete}
               onCancel={handleOrderCancel}
-              onStepChange={(current, total) => setBuildProgress({ current, total })}
+              onStepChange={handleBuildStepChange}
             />
           </div>
         )}

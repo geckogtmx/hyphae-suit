@@ -39,7 +39,7 @@ const initialState: OrderState = {
   completedOrders: [],
   editingOrder: null,
   currentStaffId: 'staff_001',
-  useExternalKDS: false,
+  useExternalKDS: true,
 };
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -281,12 +281,9 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
       let upgradeTriggered = null;
       let snapshot = undefined;
 
-      const newOrderId = (
-        100 +
-        state.activeOrders.length +
-        state.completedOrders.length +
-        1
-      ).toString();
+      const seq = state.activeOrders.length + state.completedOrders.length + 1;
+      const termId = "P1";
+      const newOrderId = action.payload.id || `${termId}-${100 + seq}`;
 
       const effectiveIsLoyalty = !!updatedProfile || isLoyalty === true;
 

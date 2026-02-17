@@ -305,8 +305,15 @@ export function OrderView() {
         const handleNewOrder = (ticket: KitchenTicket) => {
             console.log('🔔 New Ticket Received:', ticket);
             setTickets(prev => {
-                // Deduplicate
+                // Deduplicate by ticket ID
                 if (prev.some(t => t.id === ticket.id)) return prev;
+
+                // Deduplicate by Order ID (if present in details)
+                if (ticket.orderDetails?.id && prev.some(t => t.orderDetails?.id === ticket.orderDetails.id)) {
+                    console.log(`Idempotency: Ignored duplicate ticket for Order ${ticket.orderDetails.id}`);
+                    return prev;
+                }
+
                 soundService.playNewOrder();
                 return [...prev, ticket];
             });

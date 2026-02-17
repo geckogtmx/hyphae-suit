@@ -51,6 +51,7 @@ export interface OrderItem extends Product {
   uniqueId: string;
   selectedModifiers: SelectedModifier[];
   items?: OrderItem[]; // For sub-items / combos if needed
+  quantity?: number;
   notes?: string;
   finalPrice: number;
   originalPrice?: number; // Track pre-discount price
@@ -146,6 +147,7 @@ export type OrderAction =
   | {
     type: 'CREATE_ORDER';
     payload: {
+      id?: string;
       method: PaymentMethod;
       amountPaid: number;
       isFullPayment: boolean;

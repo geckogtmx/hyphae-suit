@@ -7,6 +7,10 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { PaymentProvider, PaymentResult, StripeMockProvider, SquareMockProvider, CashProvider } from '../services/payment';
+import { cashDrawer } from '../services/hardware/CashDrawerService';
+import { receiptPrinter } from '../services/hardware/ReceiptService';
+import { OrderService } from '../services/OrderService';
+import { SavedOrder } from '../types';
 import { PaymentMethod } from '../types';
 
 interface CheckoutContextType {
@@ -55,6 +59,18 @@ export const CheckoutProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             if (!result.success) {
                 setError(result.error || 'Payment failed');
+            } else {
+                // --- HARDWARE INTEGRATION ---
+                if (method === 'Cash') {
+                    // 1. Kick Drawer
+                    cashDrawer.open().catch(e => console.error('Failed to open drawer:', e));
+                }
+
+                // 2. We can't actually print the FULL receipt here because we don't have the final SavedOrder object 
+                //    until it's created in `Stage.tsx`. 
+                //    However, we *could* print a payment slip if needed.
+                //    For now, we'll let Stage handle the full receipt, but we log here.
+                console.log('[Checkout] Payment Successful. Hardware triggers ready.');
             }
 
             return result;

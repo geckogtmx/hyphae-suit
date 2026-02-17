@@ -12,13 +12,24 @@
   - Validated and enforced `127.0.0.1` (instead of `localhost`) across API, POS, BOH, and Core for reliable local networking.
   - Updated `apps/api/src/server.ts` to listen explicitly on `127.0.0.1`.
   - Updated CORS configuration in API and Socket service to whitelist `127.0.0.1`.
+- **BOH Routing & ID Hygiene**:
+  - **Deferred Kitchen Broadcast**: Modified `/api/order/checkout` to remove automatic KDS broadcasts. Orders are now only sent to the kitchen when the "Fire" button is clicked in the POS Rail.
+  - **Human-Friendly IDs**: Standardized Order IDs to a sequential format (e.g., `P1-105`) across POS, API, and BOH, replacing long timestamp stubs.
+  - **BOH Deduplication**: Implemented idempotency logic in `OrderView.tsx` to prevent redundant ticket displays.
 - **Bug Fixes**:
-  - **Infinite Loop**: Fixed `Maximum update depth exceeded` error in `apps/pos/src/hooks/useIdleTimer.ts` caused by state updates in `useEffect`.
+  - **ReferenceError**: Fixed a crash caused by a missing `useCallback` import in `Stage.tsx`.
+  - **Infinite Loop**: Fixed `Maximum update depth exceeded` error in `Stage.tsx` and `OrderBuilder.tsx` by memoizing callbacks passed as props.
   - **Auth/401 Errors**: Injected `x-api-key` header into `useMenuData` hook in POS to allow unauthenticated product fetching.
   - **API Robustness**: Added input sanitization to `checkout` endpoint (handling explicit `null`s) and improved 500 error logging.
 - **Verification**:
-  - Created and ran `test_checkout_valid.mjs` to confirm API accepts orders with valid payloads.
-  - Confirmed API is accessible and returning products via `test_products.mjs`.
+  - Verified full Order lifecycle: Checkout -> POS Rail -> Fire -> BOH KDS.
+  - Verified hardware service mocks (Cash Drawer / Printer) trigger correctly.
+- **Handoff for Next Model**:
+  - Start Phase 3 (Advanced Ordering & Real-time Sync).
+  - Review `apps/api/src/server.ts` for clean separation of concerns in order processing.
+- **Maintenance Log Update**:
+  - Standardized human-friendly Order IDs (P1-101) across all services.
+  - Optimized React stability via memoization in core POS components.
 
 ## ⚠️ Known Issues / Broken
 
