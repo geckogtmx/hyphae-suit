@@ -273,7 +273,7 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
         {readyOrders.length > 0 && (
           <>
             <div className="sticky top-0 z-20 bg-zinc-50 dark:bg-zinc-900 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <div className="flex items-center justify-between px-3 py-2 bg-lime-50 dark:bg-lime-900/20 border-l-4 border-l-lime-500">
+              <div className="flex items-center justify-between px-3 py-2 bg-zinc-100 dark:bg-zinc-800/50 border-l-4 border-l-lime-500">
                 <span className="text-xs font-bold uppercase tracking-widest text-lime-700 dark:text-lime-400">
                   Ready
                 </span>
@@ -342,9 +342,9 @@ const OrderRail: React.FC<OrderRailProps> = ({ onLayoutChange: _onLayoutChange }
         {cookingOrders.length > 0 && (
           <>
             <div className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-900 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <div className="flex items-center justify-between px-3 py-2 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-l-orange-500">
+              <div className="flex items-center justify-between px-3 py-2 bg-zinc-100 dark:bg-zinc-800/50 border-l-4 border-l-orange-500">
                 <span className="text-xs font-bold uppercase tracking-widest text-orange-700 dark:text-orange-400">
-                  Kitchen
+                  {state.useExternalKDS ? 'Kitchen' : 'Cooking'}
                 </span>
                 <span className="text-[10px] font-mono bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 px-1.5 py-0.5 rounded">
                   {cookingOrders.length}

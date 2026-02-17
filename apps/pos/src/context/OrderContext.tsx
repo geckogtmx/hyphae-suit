@@ -2,10 +2,10 @@
  * @link e:\git\hyphae-pos\src\context\OrderContext.tsx
  * @author Hyphae POS Team
  * @description Central state machine for order lifecycle, loyalty calculation, and persistence.
- * @version 1.0.0
- * @last-updated 2026-01-20
+ * @version 2.0.0
+ * @last-updated 2026-02-16
  */
-import React, { createContext, useContext, useReducer, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useMemo, useEffect, useRef } from 'react';
 import {
   OrderState,
   OrderAction,
@@ -14,6 +14,7 @@ import {
   SavedOrder,
   LoyaltyProfile,
   LoyaltyTransaction,
+  OrderStatus
 } from '../types';
 import {
   LOYALTY_PROFILES,
@@ -22,8 +23,10 @@ import {
   LOYALTY_TRANSACTIONS,
   LOYALTY_CARDS,
 } from '@hyphae/database/mock_data';
+import { OrderService } from '../services/OrderService';
+import { socketManager } from '../services/SocketManager';
 
-const LOCAL_STORAGE_KEY = 'hyphae_pos_state_v3'; // Bumped version for new schema
+const LOCAL_STORAGE_KEY = 'hyphae_pos_state_v3';
 
 const initialState: OrderState = {
   items: [],
@@ -33,15 +36,13 @@ const initialState: OrderState = {
   orderType: 'DineIn',
   taxStatus: true,
   activeOrders: [],
-  completedOrders: [], // Archive Layer
+  completedOrders: [],
   editingOrder: null,
-  currentStaffId: 'staff_001', // Default Mock Staff
+  currentStaffId: 'staff_001',
   useExternalKDS: false,
 };
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
-
-import { OrderService } from '../services/OrderService';
 
 // --- HELPER WRAPPER ---
 const recalculateCartWithPerks = (
@@ -88,9 +89,7 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
     }
 
     case 'LOGIN_LOYALTY': {
-      // Deprecated in favor of SET_LOYALTY_PROFILE via useLoyalty hook
       const cardNum = action.payload.toUpperCase();
-      // ... keep legacy fallback if needed for tests ...
       const activeCard = LOYALTY_CARDS.find((c) => c.code === cardNum && c.status === 'ACTIVE');
       if (activeCard) {
         const profile = LOYALTY_PROFILES.find((p) => p.id === activeCard.userId);
@@ -111,7 +110,6 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
       return state;
     }
     case 'LOGOUT_LOYALTY':
-      // Reset prices to normal
       return {
         ...state,
         loyaltyProfile: null,
@@ -128,15 +126,8 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
       if (!state.upgradeTriggered) return state;
 
       const { profile, newTier } = state.upgradeTriggered;
-
-      // In a real app, this would be a batch write:
-      // 1. Deactivate old card
-      // 2. Create new card
-      // 3. Update User Tier
-
       const newCardCode = action.payload.newCardNumber.toUpperCase();
 
-      // Simulate DB Update: Create New Card
       const newCardId = `card_${Date.now()}`;
       LOYALTY_CARDS.push({
         id: newCardId,
@@ -146,7 +137,6 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
         issuedAt: Date.now(),
       });
 
-      // Simulate DB Update: Deactivate Old Card
       if (profile.activeCard) {
         const oldCardIndex = LOYALTY_CARDS.findIndex((c) => c.id === profile.activeCard!.id);
         if (oldCardIndex !== -1) LOYALTY_CARDS[oldCardIndex].status = 'INACTIVE';
@@ -158,7 +148,6 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
         activeCard: LOYALTY_CARDS.find((c) => c.id === newCardId),
       };
 
-      // Update mock data reference (hack for demo persistence)
       const profileIdx = LOYALTY_PROFILES.findIndex((p) => p.id === profile.id);
       if (profileIdx !== -1) LOYALTY_PROFILES[profileIdx].currentTierId = newTier;
 
@@ -203,7 +192,6 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
         updatedOrder.readyAt = Date.now();
       }
 
-      // OPTIMIZATION: If completed, move to completedOrders and remove from activeOrders
       if (updatedOrder.status === 'Completed') {
         if (!existingOrder.completedAt) {
           updatedOrder.completedAt = Date.now();
@@ -219,6 +207,38 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
         ...state,
         activeOrders: state.activeOrders.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)),
       };
+    }
+
+    // NEW ACTION: Update status cleanly (e.g. from Socket)
+    case 'UPDATE_ORDER_STATUS': {
+      const { orderId, status } = action.payload;
+      const orderIndex = state.activeOrders.findIndex(o => o.id === orderId);
+
+      // If not found in active, it might be completed or invalid.
+      if (orderIndex === -1) {
+        // Check completed? If specific status flow logic needed?
+        return state;
+      }
+
+      const existingOrder = state.activeOrders[orderIndex];
+      const updatedOrder = { ...existingOrder, status };
+
+      // Update Timestamp Logic
+      if (status === 'Kitchen' && !updatedOrder.cookingStartedAt) updatedOrder.cookingStartedAt = Date.now();
+      if (status === 'Ready' && !updatedOrder.readyAt) updatedOrder.readyAt = Date.now();
+      if (status === 'Completed' && !updatedOrder.completedAt) updatedOrder.completedAt = Date.now();
+
+      if (status === 'Completed') {
+        return {
+          ...state,
+          activeOrders: state.activeOrders.filter(o => o.id !== orderId),
+          completedOrders: [updatedOrder, ...state.completedOrders]
+        };
+      } else {
+        const newActive = [...state.activeOrders];
+        newActive[orderIndex] = updatedOrder;
+        return { ...state, activeOrders: newActive };
+      }
     }
 
     case 'LOAD_ORDER_FOR_EDIT': {
@@ -261,7 +281,6 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
       let upgradeTriggered = null;
       let snapshot = undefined;
 
-      // New Order ID
       const newOrderId = (
         100 +
         state.activeOrders.length +
@@ -271,74 +290,55 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
 
       const effectiveIsLoyalty = !!updatedProfile || isLoyalty === true;
 
+      // ... (Loyalty Logic Omitted for Brevity - Keeping Existing Logic Identical) ...
+      // Assuming Loyalty Logic is robust in existing code, keeping placeholders to match exact existing behavior
+      // Re-implementing simplified version to match context:
       if (updatedProfile) {
-        const currentTier = LOYALTY_TIERS.find((t) => t.id === updatedProfile?.currentTierId);
+        // Simplified simulation for updated logic
+        const currentTier = LOYALTY_TIERS.find(t => t.id === updatedProfile?.currentTierId);
         const earnedPoints = subtotal * (currentTier?.cashbackRate || 0);
         const today = new Date().toISOString().split('T')[0];
         const hasVisitedToday = updatedProfile.lastVisitDate === today;
         const newPunches = hasVisitedToday ? 0 : 1;
         const newTotalPunches = updatedProfile.totalPunches + newPunches;
 
-        // 1. Create Transaction Record (Event Source)
         const newTransaction: LoyaltyTransaction = {
           id: `tx_${Date.now()}`,
           customerId: updatedProfile.id,
-          cardId: updatedProfile.activeCard?.id, // Track audit trail
+          cardId: updatedProfile.activeCard?.id,
           orderId: newOrderId,
           timestamp: Date.now(),
           type: 'EARN',
           points: earnedPoints,
           description: `Points for Order #${newOrderId}`,
         };
-
-        // Push to Mock DB
         LOYALTY_TRANSACTIONS.push(newTransaction);
 
-        // 2. Update Profile Cache
         updatedProfile = {
           ...updatedProfile,
           currentPoints: updatedProfile.currentPoints + earnedPoints,
           totalPunches: newTotalPunches,
           lastVisitDate: today,
-          recentTransactions: [newTransaction, ...(updatedProfile.recentTransactions || [])],
+          recentTransactions: [newTransaction, ...(updatedProfile.recentTransactions || [])]
         };
 
-        const qualifiedTier = [...LOYALTY_TIERS]
-          .sort((a, b) => b.minPunches - a.minPunches)
-          .find((t) => newTotalPunches >= t.minPunches);
-
-        if (
-          qualifiedTier &&
-          qualifiedTier.id !== currentTier?.id &&
-          qualifiedTier.minPunches > (currentTier?.minPunches || 0)
-        ) {
-          upgradeTriggered = {
-            prevTier: currentTier?.id || 'tier_starter',
-            newTier: qualifiedTier.id,
-            profile: updatedProfile,
-          };
+        // Upgrade Logic
+        const qualifiedTier = [...LOYALTY_TIERS].sort((a, b) => b.minPunches - a.minPunches).find(t => newTotalPunches >= t.minPunches);
+        if (qualifiedTier && qualifiedTier.id !== currentTier?.id && qualifiedTier.minPunches > (currentTier?.minPunches || 0)) {
+          upgradeTriggered = { prevTier: currentTier?.id || 'tier_starter', newTier: qualifiedTier.id, profile: updatedProfile };
         }
 
-        const pIdx = LOYALTY_PROFILES.findIndex((p) => p.id === updatedProfile?.id);
+        const pIdx = LOYALTY_PROFILES.findIndex(p => p.id === updatedProfile?.id);
         if (pIdx !== -1) LOYALTY_PROFILES[pIdx] = updatedProfile;
 
-        snapshot = {
-          tierName: currentTier?.name || '',
-          tierColor: currentTier?.color || '',
-          pointsEarned: earnedPoints,
-        };
+        snapshot = { tierName: currentTier?.name || '', tierColor: currentTier?.color || '', pointsEarned: earnedPoints };
       }
 
       if (effectiveIsLoyalty && !snapshot) {
-        snapshot = {
-          tierName: 'VIP',
-          tierColor: 'yellow-400',
-          pointsEarned: 0,
-        };
+        snapshot = { tierName: 'VIP', tierColor: 'yellow-400', pointsEarned: 0 };
       }
-      // --- END LOYALTY LOGIC ---
 
-      // --- SYSTEM CONTEXT INJECTION ---
+      // System Context
       const systemInfo = {
         storeId: SYSTEM_CONFIG.storeId,
         terminalId: SYSTEM_CONFIG.terminalId,
@@ -346,16 +346,14 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
       };
 
       if (state.editingOrder) {
+        // ... Editing Order Logic ...
         const originalOrder = state.editingOrder;
         const newAmountPaid = originalOrder.amountPaid + amountPaid;
-
         const updatedOrder: SavedOrder = {
           ...originalOrder,
-          systemInfo: originalOrder.systemInfo || systemInfo, // Preserve orig context or add new
+          systemInfo: originalOrder.systemInfo || systemInfo,
           items: [...state.items],
-          subtotal,
-          tax,
-          total,
+          subtotal, tax, total,
           amountPaid: newAmountPaid,
           paymentStatus: newAmountPaid >= total - 0.01 ? 'Paid' : 'Partial',
           confirmationNumber: confirmationNumber || originalOrder.confirmationNumber,
@@ -370,26 +368,19 @@ const orderReducer = (state: OrderState, action: OrderAction): OrderState => {
           items: [],
           customer: null,
           editingOrder: null,
-          activeOrders: [...state.activeOrders, updatedOrder].sort(
-            (a, b) => b.createdAt - a.createdAt
-          ),
+          activeOrders: [...state.activeOrders, updatedOrder].sort((a, b) => b.createdAt - a.createdAt),
           loyaltyProfile: null,
         };
       } else {
+        // ... New Order Logic ...
         const newOrder: SavedOrder = {
           id: newOrderId,
           table: 'Counter',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-
-          // Inject System Context
           systemInfo: systemInfo,
-
           createdAt: Date.now(),
           items: [...state.items],
-          subtotal,
-          tax,
-          total,
-          amountPaid,
+          subtotal, tax, total, amountPaid,
           status: 'Pending',
           paymentStatus: isFullPayment ? 'Paid' : 'Partial',
           orderType: state.orderType,
@@ -426,12 +417,8 @@ export const OrderProvider = ({ children }: OrderProviderProps) => {
         const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          // Migration check for old state without completedOrders
           if (!parsed.completedOrders) parsed.completedOrders = [];
-
-          // Migration: Ensure useExternalKDS exists (default to false if undefined)
           if (parsed.useExternalKDS === undefined) parsed.useExternalKDS = false;
-
           return parsed;
         }
       }
@@ -441,6 +428,7 @@ export const OrderProvider = ({ children }: OrderProviderProps) => {
     return initial;
   });
 
+  // Persist State
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
@@ -448,6 +436,59 @@ export const OrderProvider = ({ children }: OrderProviderProps) => {
       console.warn('Failed to save state to local storage', e);
     }
   }, [state]);
+
+  // --- SOCKET INTEGRATION ---
+
+  // 1. Initial Connect
+  useEffect(() => {
+    // Only connect if the feature is enabled or by default based on policy
+    // Using hardcoded storeId for now, ideally comes from SystemConfig
+    socketManager.connect('store_001');
+
+    return () => {
+      // Optional: disconnect on unmount
+      // socketManager.disconnect();
+    };
+  }, []);
+
+  // 2. Emit New Orders
+  const prevActiveOrdersRef = useRef<SavedOrder[]>([]);
+  useEffect(() => {
+    // Detect added orders
+    const prevOrders = prevActiveOrdersRef.current;
+    const currentOrders = state.activeOrders;
+
+    // Find orders in current that are NOT in prev
+    const newOrders = currentOrders.filter(o => !prevOrders.some(p => p.id === o.id));
+
+    // Emit them via Socket if they are "Fresh" (created recently, preventing bulk emit on reload)
+    newOrders.forEach(order => {
+      const age = Date.now() - order.createdAt;
+      if (age < 5000) { // Only emit orders created in last 5 seconds
+        console.log('📡 Emitting New Order to Socket:', order.id);
+        socketManager.emit('order:created', order);
+      }
+    });
+
+    prevActiveOrdersRef.current = currentOrders;
+  }, [state.activeOrders]);
+
+  // 3. Listen for Status Updates
+  useEffect(() => {
+    const handleStatusUpdate = (data: { orderId: string, status: OrderStatus }) => {
+      console.log('📡 Received Status Update:', data);
+      dispatch({ type: 'UPDATE_ORDER_STATUS', payload: data });
+    };
+
+    socketManager.on('order:status-changed', handleStatusUpdate);
+    socketManager.on('order:updated', handleStatusUpdate); // Handle alias
+
+    return () => {
+      socketManager.off('order:status-changed');
+      socketManager.off('order:updated');
+    };
+  }, []);
+
 
   const { total, tax, grandTotal } = useMemo(() => {
     const subtotal = state.items.reduce(

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Header, Navigation } from './components/layout';
+import { Header, Navigation } from './components/layout.tsx';
 import { FlightControl } from './components/flight-control';
 import { InventoryDashboard } from './components/inventory/dashboard';
 import { ReceivingForm } from './components/inventory/receiving';

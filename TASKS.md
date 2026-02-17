@@ -1,51 +1,44 @@
 # 📝 Active Tasks
 
-> **Focus**: Phase 1.5 - Security Remediation & Backend API Integration  
+> **Focus**: Phase 2 - Realtime Sync & Backend Analysis  
 > **Status**: In Progress  
-> **Last Updated**: 2026-02-15
+> **Last Updated**: 2026-02-16
 
 ---
 
-## 🚀 Sprint: API Security & Core Integration
+## 🚀 Sprint: Realtime Sync & Backend Analysis
 
-### 1. Runtime Configuration
-- [x] **Configure Turbo Dev**: Ensure `pnpm dev` at root runs `apps/api` concurrently with `apps/core` and `apps/pos`.
-  - *Context*: Verified `turbo.json` and package scripts.
+### 1. Governance & Setup
+- [x] **Create Codex**: Establish `@AI_CODEX.md` in root with Core Mandates.
+- [x] **Infrastructure**: Install `socket.io` (API) and `socket.io-client` (POS/BOH).
 
-### 2. Backend Security (`apps/api`)
-- [x] **Implement API Key Auth**: proper middleware to validate `x-api-key` header.
-  - *Secret*: Stored `HYPHAE_API_KEY` in `.env`.
-- [x] **Tighten CORS**: Restrict `origin` to `localhost:5173` (Core) and `localhost:5174` (POS) only.
-- [x] **Move Schemas**: Extract `AnalyzePayloadSchema` and `KitchenNotePayloadSchema` to `@hyphae/schemas`.
-  - *Goal*: Share validation logic with clients.
+### 2. Backend Implementation (`apps/api`)
+- [x] **Socket Service**: Create `SocketService` to handle connections and room management.
+- [x] **Attach Server**: Initialize WebSocket server in `server.ts`.
+- [x] **Database Connection**: Import `db` from `@hyphae/database` and connect.
+- [x] **Real Analysis**: Refactor `/api/analyze` to query SQLite `Order` table for actual history.
 
-### 3. Client Integration (`apps/core`)
-- [x] **Auth Injection**: Update `ApiClient` to send `x-api-key` from environment variables.
-- [x] **Error Handling**: Replace console errors with user-friendly toast notifications (or alert fallbacks).
-- [x] **Type Safety**: Import shared schemas from `@hyphae/schemas` for request validation.
+### 3. Client Integration (`apps/pos`)
+- [x] **Socket Manager**: Implement robust `SocketManager` with reconnection logic.
+- [x] **Order Events**: Emit `order:created` events on checkout completion.
+- [x] **Live Status**: Listen for `order:updated` events from Kitchen.
 
-### 4. Verification
-- [x] **End-to-End Test**: Verify "AUTO-ANALYZE" button works with enabled security. (Confirmed Real AI Response)
-- [x] **Negative Test**: Verify requests without key are rejected (401). (Logic implemented)
+### 4. Kitchen Display (`apps/boh`)
+- [x] **Socket Listener**: Replace polling in KDS with `SocketManager` listeners.
+- [x] **Real-time Updates**: Ensure immediate UI updates when POS emits orders.
+- [x] **Status Updates**: Emit `order:ready` back to POS when bumped.
+- [x] **New Views**: Implement Production Summary (Live/Queue) and Assembly Line (Bagging) views.
+
+### 5. Verification
+- [ ] **End-to-End Sync**: Verify POS order -> BOH display < 500ms latency.
+- [ ] **BOH -> POS Sync**: Verify Kitchen bump -> POS notification/status update.
+- [x] **AI Analysis**: Verify "Auto-Analyze" returns insights based on seeded DB data.
 
 ---
 
 ## 📋 On Deck / Next Up
 
-### Phase 2: POS Integration (Prep)
-- [x] **Auth Service Stub**: Create `AuthService` interface in `apps/pos`. (Done in `src/services/AuthService.ts`)
-- [x] **Kitchen Note**: Refine `kitchen-note` prompt for strict formatting. (Updated `server.ts` prompt)
-
-### Phase 2: POS Execution (Next Sprint)
-- [x] **Wire Login UI**: Update POS `LoginView` to use `AuthService.loginWithPin`.
-  - *Context*: Implemented `LoginScreen.tsx` and wired in `App.tsx`.
-- [x] **POS API Client**: Create `apps/pos/src/lib/apiClient.ts` (Mirror of Core).
-  - *Context*: Included secure `x-api-key` injection.
-- [x] **Send Order**: Implement "Send to Kitchen" button that POSTs to `/api/kitchen-note` (for testing).
-  - *Context*: Wired to "Fire" action in `OrderRail.tsx`.
-- [x] **KDS Configuration**: Add toggle to enable/disable external BOH communication.
-  - *Context*: Added `useExternalKDS` state and Header toggle. Local POS KDS always functions.
-  - *Verification*: Enabled `apps/boh` **KDS View** to receive/display orders in real-time.
-
-### Phase 2: Database
-- [ ] **Seed Data**: Ensure `packages/database` has robust mock data for "Analysis" scenarios.
+### Phase 3: Production Hardening
+- [ ] **Error Handling**: comprehensive global error boundaries.
+- [ ] **Performance**: React Query caching optimizations.
+- [ ] **Security**: Rate limiting on API and WebSocket connections.

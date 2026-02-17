@@ -3,12 +3,12 @@ import cors from '@fastify/cors';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { z } from 'zod'; // Keep zod for internal validation if needed
-import { AnalyzePayloadSchema, KitchenNotePayloadSchema } from '@hyphae/schemas';
+import { AnalyzePayloadSchema } from '@hyphae/schemas';
+import { socketService } from './services/SocketService';
+import { db, schema, desc } from '@hyphae/database';
 
 // Load env from current dir OR root fallback (for monorepo convenience)
 dotenv.config();
-// Env loaded. Force restart check.
-// attempt root if not found? keeping simple for now.
 
 const server = Fastify({
     logger: true
@@ -36,7 +36,7 @@ const ai = apiKey && apiKey !== 'PLACEHOLDER_CHANGE_ME'
     ? new GoogleGenAI({ apiKey })
     : null;
 
-const MODEL_FAST = 'gemini-2.5-flash';
+const MODEL_FAST = 'gemini-2.0-flash'; // Updated model
 
 // --- Auth Middleware ---
 server.addHook('preHandler', async (request, reply) => {
@@ -59,10 +59,19 @@ server.get('/health', async () => {
 
 server.post('/api/analyze', async (request, reply) => {
     try {
-        const { transactions, menu } = AnalyzePayloadSchema.parse(request.body);
+        // We still validate the body, but we might rely on DB for the actual data
+        const payload = AnalyzePayloadSchema.parse(request.body);
+        // Fallback to empty array if menu is missing (though schema says required, being safe)
+        const menu = payload.menu || [];
 
-        if (!transactions.length) {
-            return { result: "No data available for analysis." };
+        // Fetch real transaction history from SQLite
+        const recentOrders = await db.select()
+            .from(schema.orders)
+            .orderBy(desc(schema.orders.createdAt))
+            .limit(50);
+
+        if (!recentOrders.length) {
+            return { result: "No historical data available in database for analysis." };
         }
 
         const prompt = `
@@ -71,11 +80,16 @@ server.post('/api/analyze', async (request, reply) => {
       Here is the menu:
       ${JSON.stringify(menu.map((m: any) => ({ name: m.name, price: m.price, cat: m.categoryId })))}
       
-      Here are the recent transactions:
-      ${JSON.stringify(transactions.slice(0, 50))} // Limit context window
+      Here are the 50 most recent real transactions from the database:
+      ${JSON.stringify(recentOrders.map(o => ({
+            id: o.id,
+            total: o.total,
+            time: new Date(o.createdAt).toLocaleTimeString(),
+            type: o.orderType
+        })))}
       
-      Provide a brief, 3-bullet executive summary of performance.
-      Identify one underperforming item and suggest a strategic price adjustment or marketing angle.
+      Provide a brief, 3-bullet executive summary of performance based on this REAL data.
+      Identify one trend (e.g., peak times, popular order types) and suggest an action.
       Keep the tone professional but operational.
     `;
 
@@ -89,7 +103,7 @@ server.post('/api/analyze', async (request, reply) => {
             resultText = response.text || resultText;
         } else {
             // Mock Response
-            resultText = "EXECUTIVE SUMMARY (MOCK):\n• Sales are steady but lunch rush is down 15%.\n• 'Spicy Chicken Sandwich' is underperforming.\n• Suggest running a BOGO promo for lunch.\n\n(AI Key Missing - This is a simulation)";
+            resultText = `EXECUTIVE SUMMARY (MOCK - DB CONNECTED):\n• Analyzed ${recentOrders.length} real orders from database.\n• Average order value is $${(recentOrders.reduce((a, b) => a + b.total, 0) / recentOrders.length).toFixed(2)}.\n• Suggest promoting higher margin items.\n\n(AI Key Missing - Data Source: SQLite)`;
         }
 
         return { result: resultText };
@@ -98,7 +112,7 @@ server.post('/api/analyze', async (request, reply) => {
             reply.code(400).send({ error: "Validation Error", details: error.errors });
         } else {
             request.log.error(error);
-            reply.code(500).send({ error: "Internal Server Error" });
+            reply.code(500).send({ error: "Internal Server Error", details: (error as Error).message });
         }
     }
 });
@@ -154,15 +168,12 @@ server.post('/api/kitchen-note', async (request, reply) => {
         }
 
         // --- IDEMPOTENCY CHECK ---
-        // If a ticket for this Order ID already exists and is pending, don't create a new one.
-        // This prevents duplicates if the POS retries or "Resends".
         if (orderDetails && orderDetails.id) {
             const existingTicket = kitchenQueue.find(
                 t => t.status === 'pending' && t.orderDetails?.id === orderDetails.id
             );
 
             if (existingTicket) {
-                // Update note if changed? For now, just return existing to be safe.
                 request.log.info(`Idempotency: Returned existing ticket ${existingTicket.id} for Order ${orderDetails.id}`);
                 return { result: existingTicket.note, ticketId: existingTicket.id };
             }
@@ -179,8 +190,10 @@ server.post('/api/kitchen-note', async (request, reply) => {
         };
         kitchenQueue.push(ticket);
 
-        // Keep queue size manageable for demo
         if (kitchenQueue.length > 50) kitchenQueue.shift();
+
+        // --- REALTIME BROADCAST ---
+        socketService.emit('order:new', ticket);
 
         return { result: note, ticketId: ticket.id };
 
@@ -191,16 +204,12 @@ server.post('/api/kitchen-note', async (request, reply) => {
 });
 
 server.get('/api/kitchen-queue', async (request, reply) => {
-    // Return only pending
     return kitchenQueue.filter(t => t.status === 'pending').sort((a, b) => b.timestamp - a.timestamp);
 });
 
 server.get('/api/kitchen-status', async (request, reply) => {
-    // Return status of all tickets in memory
-    // Map orderId -> status
     const statusMap: Record<string, string> = {};
     kitchenQueue.forEach(t => {
-        // If ticket was created with a full order object, use that ID. Otherwise try to parse or fallback.
         const orderId = t.orderDetails?.id;
         if (orderId) {
             statusMap[orderId] = t.status;
@@ -214,6 +223,16 @@ server.post('/api/kitchen-queue/:id/complete', async (request, reply) => {
     const ticket = kitchenQueue.find(t => t.id === id);
     if (ticket) {
         ticket.status = 'completed';
+
+        const payload = {
+            orderId: ticket.orderDetails?.id,
+            status: 'completed',
+            ticketId: ticket.id
+        };
+        // Notify System
+        socketService.emit('order:status-changed', payload);
+        socketService.emit('order:updated', payload); // Alias for compatibility
+
         return { success: true };
     }
     return reply.code(404).send({ error: 'Ticket not found' });
@@ -223,6 +242,10 @@ server.post('/api/kitchen-queue/:id/complete', async (request, reply) => {
 const start = async () => {
     try {
         const PORT = parseInt(process.env.PORT || '3001');
+
+        await server.ready();
+        socketService.initialize(server.server);
+
         await server.listen({ port: PORT, host: '0.0.0.0' });
         console.log(`Server listening on port ${PORT}`);
     } catch (err) {

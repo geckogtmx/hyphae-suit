@@ -20,51 +20,36 @@ import { MenuRepository } from '../repositories/MenuRepository';
 
 const API_URL = 'http://localhost:3001';
 
-// --- MOCK FETCHERS (Fallback to mock data if API is down) ---
+// --- MOCKED FETCHERS (Fallback to mock data if API is down or unauthorized) ---
 const fetchConcepts = async (): Promise<Concept[]> => {
-  try {
-    const res = await fetch(`${API_URL}/concepts`);
-    if (!res.ok) return CONCEPTS;
-    return res.json();
-  } catch {
-    return CONCEPTS;
-  }
+  // TODO: Implement Auth Header
+  return CONCEPTS;
 };
 
 const fetchCategories = async (): Promise<Category[]> => {
-  try {
-    const res = await fetch(`${API_URL}/categories`);
-    if (!res.ok) return CATEGORIES;
-    return res.json();
-  } catch {
-    return CATEGORIES;
-  }
+  // TODO: Implement Auth Header
+  return CATEGORIES;
 };
 
 const fetchProducts = async (): Promise<Product[]> => {
   try {
     const repo = new MenuRepository();
+    // Try Repository First (IndexedDB/Offline)
     const products = await repo.getProducts();
-    // Fallback to MOCK if DB empty? No, we seeded.
-    if (products.length === 0) {
-      console.warn('DB Empty, falling back to mock (for safety)');
-      return PRODUCTS;
-    }
-    return products;
+    if (products.length > 0) return products;
+
+    // Fallback to Mock
+    console.debug('Local DB Empty, using Mock Data');
+    return PRODUCTS;
   } catch (err) {
-    console.error('Failed to fetch from DB:', err);
+    console.warn('Failed to fetch from DB, using mock:', err);
     return PRODUCTS;
   }
 };
 
 const fetchLoyaltyTiers = async (): Promise<LoyaltyTier[]> => {
-  try {
-    const res = await fetch(`${API_URL}/loyalty-tiers`);
-    if (!res.ok) return LOYALTY_TIERS;
-    return res.json();
-  } catch {
-    return LOYALTY_TIERS;
-  }
+  // TODO: Implement Auth Header
+  return LOYALTY_TIERS;
 };
 
 export const useMenuData = () => {

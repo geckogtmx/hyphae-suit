@@ -3,7 +3,7 @@ import { z } from 'zod';
 // --- API Request Schemas ---
 
 export const AnalyzePayloadSchema = z.object({
-    transactions: z.array(z.any()), // Refine type later if possible
+    transactions: z.array(z.any()).optional(), // Refine type later if possible
     menu: z.array(z.any()), // Refine type later if possible
 });
 

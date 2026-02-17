@@ -1,7 +1,7 @@
 
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
-import * as schema from './schema';
+import * as schema from './schema.js';
 // Shared DB Path
 // Hardcoding for local monorepo simplicity so both apps hit the same file
 // relative to this package's location in node_modules or symlink
@@ -14,8 +14,9 @@ const getDatabaseUrl = () => {
         return ':memory:';
     }
     // Check for Vite environment
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DATABASE_URL) {
-        return import.meta.env.VITE_DATABASE_URL;
+    const metaEnv = (import.meta as any).env;
+    if (typeof import.meta !== 'undefined' && metaEnv && metaEnv.VITE_DATABASE_URL) {
+        return metaEnv.VITE_DATABASE_URL;
     }
     // Check for Node environment
     if (typeof process !== 'undefined' && process.env && process.env.DATABASE_URL) {
@@ -25,8 +26,9 @@ const getDatabaseUrl = () => {
 };
 
 const getAuthToken = () => {
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DATABASE_AUTH_TOKEN) {
-        return import.meta.env.VITE_DATABASE_AUTH_TOKEN;
+    const metaEnv = (import.meta as any).env;
+    if (typeof import.meta !== 'undefined' && metaEnv && metaEnv.VITE_DATABASE_AUTH_TOKEN) {
+        return metaEnv.VITE_DATABASE_AUTH_TOKEN;
     }
     if (typeof process !== 'undefined' && process.env && process.env.DATABASE_AUTH_TOKEN) {
         return process.env.DATABASE_AUTH_TOKEN;
@@ -71,5 +73,6 @@ if (typeof window !== 'undefined') {
 
 export const db = drizzle(client, { schema });
 export { schema };
-export * from './schema';
-export * from './mock_data';
+export * from './schema.js';
+export * from './mock_data.js';
+export { eq, desc, asc, and, or } from 'drizzle-orm';

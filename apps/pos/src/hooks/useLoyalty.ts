@@ -13,34 +13,21 @@ import { LOYALTY_PROFILES, LOYALTY_CARDS, LOYALTY_TRANSACTIONS } from '@hyphae/d
 const API_URL = 'http://localhost:3001';
 
 // --- MOCK FETCHERS ---
+// --- MOCK FETCHERS ---
 const fetchProfiles = async (): Promise<LoyaltyProfile[]> => {
-  try {
-    const res = await fetch(`${API_URL}/loyalty-profiles`);
-    if (!res.ok) return LOYALTY_PROFILES;
-    return res.json();
-  } catch {
-    return LOYALTY_PROFILES;
-  }
+  // TODO: Implement Auth Header or check for token before fetching
+  // return fetch(`${API_URL}/loyalty-profiles`).then(res => res.json());
+  return LOYALTY_PROFILES;
 };
 
 const fetchCards = async (): Promise<LoyaltyCard[]> => {
-  try {
-    const res = await fetch(`${API_URL}/loyalty-cards`);
-    if (!res.ok) return LOYALTY_CARDS;
-    return res.json();
-  } catch {
-    return LOYALTY_CARDS;
-  }
+  // TODO: Implement Auth Header
+  return LOYALTY_CARDS;
 };
 
 const fetchTransactions = async (): Promise<LoyaltyTransaction[]> => {
-  try {
-    const res = await fetch(`${API_URL}/loyalty-transactions`);
-    if (!res.ok) return LOYALTY_TRANSACTIONS;
-    return res.json();
-  } catch {
-    return LOYALTY_TRANSACTIONS;
-  }
+  // TODO: Implement Auth Header
+  return LOYALTY_TRANSACTIONS;
 };
 
 export const useLoyalty = () => {

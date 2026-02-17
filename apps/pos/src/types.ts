@@ -142,6 +142,7 @@ export type OrderAction =
   | { type: 'CANCEL_EDIT' }
   | { type: 'SET_STAFF'; payload: string } // Login Staff
   | { type: 'TOGGLE_EXTERNAL_KDS' }
+  | { type: 'UPDATE_ORDER_STATUS'; payload: { orderId: string; status: OrderStatus } }
   | {
     type: 'CREATE_ORDER';
     payload: {
