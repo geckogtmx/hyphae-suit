@@ -1157,3 +1157,19 @@ _Next Review: After Phase 0 completion_
 - **Client Integration**:
   - Refactored `apps/core` to use a typesafe `ApiClient` instead of direct SDK calls.
   - Verified end-to-end flow with "Auto-Analyze" feature.
+
+### Phase 2 & 3: Sync & Backend Integration (Completed Feb 2026)
+
+> **Focus:** Unifying the platform with real-time sync and robust error handling.
+
+#### Achievements
+- **Standardized Connectivity**:
+  - Enforced `127.0.0.1` across all apps (POS, BOH, Core, API) to resolve CORS and local networking issues.
+  - Configured `Socket.IO` on the root namespace for reliable POS -> BOH communication.
+- **Bug Fixes & Hardening**:
+  - Resolved "Maximum update depth exceeded" infinite loops in POS `useIdleTimer`.
+  - Fixed 401 Unauthorized errors by injecting `x-api-key` in POS data hooks.
+  - Improved API error reporting for 500s (stack traces in dev mode).
+- **Authentication**:
+  - Implemented JWT-based `AuthService` in POS.
+  - Secured API endpoints with `x-api-key` and Bearer token verification.
