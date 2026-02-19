@@ -1,84 +1,60 @@
 /**
  * @link e:\git\hyphae-pos\src\hooks\useLoyalty.ts
  * @author Hyphae POS Team
- * @description Hook for fetching loyalty user data (Profiles, Cards, Transactions).
- * @version 1.0.0
- * @last-updated 2026-01-20
+ * @description Hook for fetching loyalty user data securely via API.
+ * @version 1.0.1
+ * @last-updated 2026-02-19
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LoyaltyProfile, LoyaltyCard, LoyaltyTransaction } from '../types';
-import { LOYALTY_PROFILES, LOYALTY_CARDS, LOYALTY_TRANSACTIONS } from '@hyphae/database/mock_data';
-
-const API_URL = 'http://127.0.0.1:3001';
-
-// --- MOCK FETCHERS ---
-// --- MOCK FETCHERS ---
-const fetchProfiles = async (): Promise<LoyaltyProfile[]> => {
-  // TODO: Implement Auth Header or check for token before fetching
-  // return fetch(`${API_URL}/loyalty-profiles`).then(res => res.json());
-  return LOYALTY_PROFILES;
-};
-
-const fetchCards = async (): Promise<LoyaltyCard[]> => {
-  // TODO: Implement Auth Header
-  return LOYALTY_CARDS;
-};
-
-const fetchTransactions = async (): Promise<LoyaltyTransaction[]> => {
-  // TODO: Implement Auth Header
-  return LOYALTY_TRANSACTIONS;
-};
+import { useState } from 'react';
+import { LoyaltyService } from '../services/LoyaltyService';
+import { LoyaltyProfile, LoyaltyTransaction } from '../types';
 
 export const useLoyalty = () => {
-  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: profiles = LOYALTY_PROFILES, isLoading: loadingProfiles } = useQuery({
-    queryKey: ['loyaltyProfiles'],
-    queryFn: fetchProfiles,
-  });
+  /**
+   * Lookup a loyalty profile by card number (or code).
+   */
+  const getProfileByCard = async (code: string): Promise<LoyaltyProfile | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profile = await LoyaltyService.fetchProfile(code);
+      if (!profile) {
+        // Not meaningful to set error here if it's just not found, let caller handle
+        return null;
+      }
+      return profile;
+    } catch (err: any) {
+      setError(err.message || 'Failed to lookup loyalty card');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const { data: cards = LOYALTY_CARDS, isLoading: loadingCards } = useQuery({
-    queryKey: ['loyaltyCards'],
-    queryFn: fetchCards,
-  });
-
-  const { data: transactions = LOYALTY_TRANSACTIONS, isLoading: loadingTx } = useQuery({
-    queryKey: ['loyaltyTransactions'],
-    queryFn: fetchTransactions,
-  });
-
-  const loading = loadingProfiles || loadingCards || loadingTx;
-
-  // --- LOGIC ---
-
-  // Find Profile by Card Code
-  const getProfileByCard = (code: string): LoyaltyProfile | null => {
-    const cardCode = code.toUpperCase();
-    const activeCard = cards.find((c) => c.code === cardCode && c.status === 'ACTIVE');
-
-    if (!activeCard) return null;
-
-    const profile = profiles.find((p) => p.id === activeCard.userId);
-    if (!profile) return null;
-
-    // Hydrate
-    const userTx = transactions
-      .filter((t) => t.customerId === profile.id)
-      .sort((a, b) => b.timestamp - a.timestamp);
-
-    return {
-      ...profile,
-      activeCard: activeCard,
-      recentTransactions: userTx,
-    };
+  /**
+   * Fetch transaction history for a profile.
+   */
+  const getHistory = async (profileId: string): Promise<LoyaltyTransaction[]> => {
+    setLoading(true);
+    try {
+      const history = await LoyaltyService.fetchHistory(profileId);
+      return history;
+    } catch (err: any) {
+      console.error('Failed to fetch history', err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
   return {
-    profiles,
-    cards,
-    transactions,
     loading,
+    error,
     getProfileByCard,
+    getHistory,
   };
 };

@@ -100,7 +100,7 @@ const LoyaltyUpgradeModal = () => {
                   Action Required
                 </strong>
                 Recover card{' '}
-                <span className="font-mono font-bold">{profile.activeCard?.code || 'NO_CARD'}</span>{' '}
+                <span className="font-mono font-bold">{profile.activeCard?.code || profile.cardNumber || 'NO_CARD'}</span>{' '}
                 from customer and destroy/recycle it.
               </div>
             </div>

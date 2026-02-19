@@ -120,7 +120,7 @@ export class OrderService {
   /**
    * Send order to backend for persistence and inventory deduction.
    */
-  static async checkout(payload: any): Promise<{ success: boolean; message?: string; error?: string }> {
+  static async checkout(payload: any): Promise<{ success: boolean; message?: string; error?: string; luckyWinner?: boolean }> {
     try {
       const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://127.0.0.1:3001/api';
       const cleanUrl = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;

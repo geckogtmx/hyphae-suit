@@ -168,3 +168,15 @@ export interface OrderContextType {
   tax: number;
   grandTotal: number;
 }
+
+// --- TOAST NOTIFICATIONS ---
+
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+export interface ToastMessage {
+  id: string;
+  title: string;
+  description?: string;
+  type: ToastType;
+  duration?: number;
+}

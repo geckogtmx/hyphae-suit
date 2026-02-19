@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OrderProvider } from './context/OrderContext';
 import { CheckoutProvider } from './context/CheckoutContext';
+import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { useMenuData } from './hooks/useMenuData';
 import { useIdleTimer } from './hooks/useIdleTimer';
@@ -259,9 +260,11 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <OrderProvider>
-          <CheckoutProvider>
-            <AppShell />
-          </CheckoutProvider>
+          <ToastProvider>
+            <CheckoutProvider>
+              <AppShell />
+            </CheckoutProvider>
+          </ToastProvider>
         </OrderProvider>
       </ThemeProvider>
     </QueryClientProvider>

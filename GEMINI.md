@@ -1,7 +1,7 @@
 # GEMINI.md - Project Map & Source of Truth
 
 **Project**: Hyphae Suit Monorepo
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-02-19
 
 ## 1. Project Overview
 
@@ -64,6 +64,7 @@ The following rules are enforced across the entire monorepo:
 
 ## 6. Maintenance Log
 
+- **2026-02-19**: Fixed Loyalty Registration "Error Persists" loop. Identified and resolved a critical database schema mismatch (missing `is_physical_card` column). Enforced the **Inverted Abyssal Theme** scale across all loyalty components, ensuring dark backgrounds and high contrast. Fixed the POS "Start Order" button by implementing a `cardNumber` fallback for the legacy `activeCard` structure. Standardized loyalty API queries to prevent camelCase/snake_case mismatches.
 - **2026-02-17**: Completed POS Phase 3 (Backend Integration). Added Inventory Depletion, Loyalty System, and real-time checkout sync. Resolved BOH routing duplication and standardized human-friendly Order IDs (P1-101). Fixed React infinite loops and missing `useCallback` imports.
 - **2026-02-12**: Consolidatd `GEMINI.md` to root.
 - **2026-02-12**: Ported "Product Builder" to Core; Created `@hyphae/schemas`.

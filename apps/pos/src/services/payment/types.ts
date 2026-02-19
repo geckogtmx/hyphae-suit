@@ -13,6 +13,7 @@ export interface PaymentResult {
     error?: string;
     amount: number;
     method: PaymentMethod;
+    luckyWinner?: boolean;
 }
 
 export interface PaymentProvider {

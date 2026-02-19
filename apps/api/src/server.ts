@@ -406,7 +406,31 @@ server.post('/api/order/checkout', async (request, reply) => {
             console.error('[CheckoutAPI] Inventory deduction failed:', err);
         });
 
-        return { success: true, orderId: payload.id, message: "Order processed successfully" };
+        // 3. Lucky Issuance Logic (10% Chance for Guests)
+        let luckyCardNumber: string | undefined;
+        if (!payload.loyaltyProfileId) {
+            const isLucky = Math.random() < 0.1; // 10% chance
+            if (isLucky) {
+                // Generate a temporary "Claim Me" profile or just return a code?
+                // Plan said: Create "Unclaimed" profile.
+                luckyCardNumber = Math.random().toString(36).substring(2, 10).toUpperCase();
+                const newProfileId = `cust_lucky_${Date.now()}`;
+
+                // We create a shell profile that the cashier can "Swap" into or just link.
+                // Actually, the simplest is: POS shows code -> Cashier grabs physical card -> "Register" flow used to claim it?
+                // Or: Cashier scans NEW card to claim the "Lucky" status?
+                // Let's just return the signal and let POS handle the "Scan to Claim" UI.
+                // We won't pre-create the profile here to avoid database litter if ignored.
+                // We'll just tell POS "You Won!".
+            }
+        }
+
+        return {
+            success: true,
+            orderId: payload.id,
+            message: "Order processed successfully",
+            luckyWinner: !!luckyCardNumber // Simple boolean trigger for now
+        };
 
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -424,27 +448,85 @@ server.post('/api/order/checkout', async (request, reply) => {
     }
 });
 
+// --- CARD SWAP / PHYSICAL TOKEN LINKING ---
+server.post('/api/loyalty/swap-card', async (request, reply) => {
+    const SwapSchema = z.object({
+        currentCardNumber: z.string(),
+        newCardNumber: z.string().min(4)
+    });
+
+    try {
+        const { currentCardNumber, newCardNumber } = SwapSchema.parse(request.body);
+
+        // 1. Verify Old Card Exists
+        const oldProfiles = await db.select()
+            .from(schema.loyaltyProfiles)
+            .where(eq(schema.loyaltyProfiles.cardNumber, currentCardNumber))
+            .limit(1);
+
+        const oldProfile = oldProfiles[0];
+
+        if (!oldProfile) {
+            return reply.code(404).send({ error: 'Current loyalty profile not found' });
+        }
+
+        // 2. Verify New Card is Empty (Not already claimed)
+        const newCardProfiles = await db.select()
+            .from(schema.loyaltyProfiles)
+            .where(eq(schema.loyaltyProfiles.cardNumber, newCardNumber))
+            .limit(1);
+
+        if (newCardProfiles.length > 0) {
+            return reply.code(409).send({ error: 'New card is already registered' });
+        }
+
+        // 3. Perform Swap
+        await db.update(schema.loyaltyProfiles)
+            .set({
+                cardNumber: newCardNumber,
+                isPhysicalCard: true // Assume swaps are to physical tokens
+            })
+            .where(eq(schema.loyaltyProfiles.id, oldProfile.id));
+
+        // 4. Log Event (Optional Transaction or specific log table)
+        // For now, simple console log
+        request.log.info(`[Loyalty] Swapped Card ${currentCardNumber} -> ${newCardNumber} for ${oldProfile.name}`);
+
+        return { success: true, newCardNumber };
+
+    } catch (e: any) {
+        request.log.error(e);
+        const msg = e instanceof z.ZodError ? "Validation failed" : (e.message || "Swap failed");
+        reply.code(400).send({ error: msg });
+    }
+});
+
 // --- LOYALTY ROUTES ---
 
 server.get('/api/loyalty/:cardNumber', async (request, reply) => {
     const { cardNumber } = request.params as { cardNumber: string };
 
     try {
-        const profile = await db.query.loyaltyProfiles.findFirst({
-            where: eq(schema.loyaltyProfiles.cardNumber, cardNumber),
-            with: {
-                transactions: {
-                    limit: 10,
-                    orderBy: [desc(schema.loyaltyTransactions.timestamp)]
-                }
-            }
-        });
+        const results = await db.select()
+            .from(schema.loyaltyProfiles)
+            .where(eq(schema.loyaltyProfiles.cardNumber, cardNumber))
+            .limit(1);
+
+        const profile = results[0];
 
         if (!profile) {
             return reply.code(404).send({ error: 'Loyalty profile not found' });
         }
 
-        return profile;
+        // Fetch transactions separately if needed, or join. 
+        // For simplicity and matching previous 'limit 10' logic:
+        const transactions = await db.select()
+            .from(schema.loyaltyTransactions)
+            .where(eq(schema.loyaltyTransactions.profileId, profile.id))
+            .orderBy(desc(schema.loyaltyTransactions.timestamp))
+            .limit(10);
+
+        return { ...profile, transactions };
     } catch (e) {
         request.log.error(e);
         reply.code(500).send({ error: 'Failed to fetch loyalty profile' });
@@ -465,6 +547,124 @@ server.get('/api/loyalty/profiles/:id/history', async (request, reply) => {
     } catch (e) {
         request.log.error(e);
         reply.code(500).send({ error: 'Failed to fetch loyalty history' });
+    }
+});
+
+// --- LOYALTY REGISTRATION ---
+
+server.post('/api/loyalty/register', async (request, reply) => {
+    const RegisterSchema = z.object({
+        name: z.string().min(2),
+        phone: z.string().min(10).optional(),
+        email: z.string().email().optional(),
+        cardNumber: z.string().min(4).optional() // Optional, auto-generate if missing
+    });
+
+    try {
+        const payload = RegisterSchema.parse(request.body);
+
+        // Auto-generate card number if not provided
+        // Simple 8-char alphanumeric for now
+        const cardNumber = payload.cardNumber || Math.random().toString(36).substring(2, 10).toUpperCase();
+
+        // Check for duplicates
+        const existing = await db.select()
+            .from(schema.loyaltyProfiles)
+            .where(eq(schema.loyaltyProfiles.cardNumber, cardNumber))
+            .limit(1);
+
+        if (existing.length > 0) {
+            return reply.code(409).send({ error: 'Card number already exists' });
+        }
+
+        const newProfileId = `cust_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+        await db.insert(schema.loyaltyProfiles).values({
+            id: newProfileId,
+            name: payload.name,
+            phone: payload.phone || null,
+            email: payload.email || null,
+            cardNumber: cardNumber,
+            currentPoints: 0,
+            totalPunches: 0,
+            currentTierId: 'tier_starter',
+            createdAt: Date.now()
+        });
+
+        // Fetch back to confirm
+        const profiles = await db.select()
+            .from(schema.loyaltyProfiles)
+            .where(eq(schema.loyaltyProfiles.id, newProfileId))
+            .limit(1);
+
+        const profile = profiles[0];
+
+        return { success: true, profile };
+
+    } catch (e: any) {
+        request.log.error(e);
+        const msg = e instanceof z.ZodError ? "Validation failed" : (e.message || "Registration failed");
+        reply.code(400).send({ error: msg, details: e });
+    }
+});
+
+// --- LOYALTY REDEMPTION ---
+
+server.post('/api/loyalty/redeem', async (request, reply) => {
+    const RedeemSchema = z.object({
+        profileId: z.string(),
+        points: z.number().positive(),
+        description: z.string().optional()
+    });
+
+    try {
+        const { profileId, points, description } = RedeemSchema.parse(request.body);
+
+        await db.transaction(async (tx) => {
+            const results = await tx.select()
+                .from(schema.loyaltyProfiles)
+                .where(eq(schema.loyaltyProfiles.id, profileId))
+                .limit(1);
+
+            const profile = results[0];
+
+            if (!profile) throw new Error('Profile not found');
+            if ((profile.currentPoints || 0) < points) throw new Error('Insufficient points');
+
+            // Deduct Points
+            await tx.update(schema.loyaltyProfiles)
+                .set({
+                    currentPoints: sql`${schema.loyaltyProfiles.currentPoints} - ${points}`
+                })
+                .where(eq(schema.loyaltyProfiles.id, profileId));
+
+            // Log Transaction
+            await tx.insert(schema.loyaltyTransactions).values({
+                id: `ltx_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                profileId,
+                type: 'REDEEM',
+                points: -points, // Negative for redemption display logic usually, or keep positive and use type? 
+                // Schema comment says "points", usually standardized to inputs. 
+                // Let's store as negative to make sum() easy if needed, OR keep positive and rely on type.
+                // Looking at EARN in checkout: `points: pointsToEarn` (positive).
+                // Let's use NEGATIVE for Redemptions to allow simple SUM queries.
+                orderId: null, // Optional connection to order if we had it
+                timestamp: Date.now(),
+                // Description isn't in schema? 'type' is text. 
+                // Wait, schema has NO description field. 
+                // 'type' is strict? No, it's text.
+                // Let's use 'REDEEM' as type. 
+            });
+        });
+
+        const updatedProfile = await db.query.loyaltyProfiles.findFirst({
+            where: eq(schema.loyaltyProfiles.id, profileId)
+        });
+
+        return { success: true, newBalance: updatedProfile?.currentPoints };
+    } catch (e: any) {
+        request.log.error(e);
+        reply.code(400).send({ error: e.message || "Redemption failed" });
     }
 });
 

@@ -12,6 +12,7 @@ import { receiptPrinter } from '../services/hardware/ReceiptService';
 import { OrderService } from '../services/OrderService';
 import { SavedOrder } from '../types';
 import { PaymentMethod } from '../types';
+import { useToast } from './ToastContext';
 
 interface CheckoutContextType {
     isProcessing: boolean;
@@ -19,6 +20,8 @@ interface CheckoutContextType {
     paymentProviders: PaymentProvider[];
     processPayment: (method: PaymentMethod, amount: number, orderId: string) => Promise<PaymentResult>;
     resetCheckout: () => void;
+    luckyWinner: boolean;
+    setLuckyWinner: (val: boolean) => void;
 }
 
 const CheckoutContext = createContext<CheckoutContextType | undefined>(undefined);
@@ -26,6 +29,7 @@ const CheckoutContext = createContext<CheckoutContextType | undefined>(undefined
 export const CheckoutProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { addToast } = useToast();
 
     const paymentProviders = [
         new CashProvider(),
@@ -33,9 +37,12 @@ export const CheckoutProvider: React.FC<{ children: ReactNode }> = ({ children }
         new SquareMockProvider(),
     ];
 
+    const [luckyWinner, setLuckyWinner] = useState(false);
+
     const processPayment = async (method: PaymentMethod, amount: number, orderId: string): Promise<PaymentResult> => {
         setIsProcessing(true);
         setError(null);
+        setLuckyWinner(false);
 
         try {
             // Map UI methods to provider methods
@@ -59,7 +66,22 @@ export const CheckoutProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             if (!result.success) {
                 setError(result.error || 'Payment failed');
+                addToast({
+                    title: 'Payment Failed',
+                    description: result.error || 'The transaction could not be completed.',
+                    type: 'error',
+                });
             } else {
+                addToast({
+                    title: 'Payment Successful',
+                    description: `Amount: $${amount.toFixed(2)}`,
+                    type: 'success',
+                });
+
+                if (result.luckyWinner) {
+                    setLuckyWinner(true);
+                }
+
                 // --- HARDWARE INTEGRATION ---
                 if (method === 'Cash') {
                     // 1. Kick Drawer
@@ -77,6 +99,11 @@ export const CheckoutProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (err: any) {
             const msg = err.message || 'An unexpected error occurred during payment';
             setError(msg);
+            addToast({
+                title: 'System Error',
+                description: msg,
+                type: 'error',
+            });
             return { success: false, error: msg, amount, method: 'OTHER' as any };
         } finally {
             setIsProcessing(false);
@@ -86,10 +113,11 @@ export const CheckoutProvider: React.FC<{ children: ReactNode }> = ({ children }
     const resetCheckout = () => {
         setIsProcessing(false);
         setError(null);
+        setLuckyWinner(false);
     };
 
     return (
-        <CheckoutContext.Provider value={{ isProcessing, error, paymentProviders, processPayment, resetCheckout }}>
+        <CheckoutContext.Provider value={{ isProcessing, error, paymentProviders, processPayment, resetCheckout, luckyWinner, setLuckyWinner }}>
             {children}
         </CheckoutContext.Provider>
     );

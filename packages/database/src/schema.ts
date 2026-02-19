@@ -193,7 +193,8 @@ export const loyaltyProfiles = sqliteTable('loyalty_profiles', {
   cardNumber: text('card_number').notNull().unique(),
   currentPoints: real('current_points').default(0),
   totalPunches: integer('total_punches').default(0),
-  currentTierId: text('current_tier_id').notNull().default('tier_bronze'),
+  currentTierId: text('current_tier_id').notNull().default('tier_starter'),
+  isPhysicalCard: integer('is_physical_card', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at').notNull(),
 });
 

@@ -15,6 +15,8 @@ import { LoyaltyService } from '../services/LoyaltyService';
 import { receiptPrinter } from '../services/hardware/ReceiptService';
 import OrderBuilder from './OrderBuilder';
 import CheckoutModal from './CheckoutModal';
+import RedemptionModal from './RedemptionModal';
+import LuckyWinnerModal from './LuckyWinnerModal';
 import LoyaltyScreen from './LoyaltyScreen';
 import {
   Search,
@@ -54,6 +56,7 @@ const Stage: React.FC<StageProps> = ({
     total: 0,
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isRedemptionOpen, setIsRedemptionOpen] = useState(false);
 
   const [isTicketExpanded, setIsTicketExpanded] = useState(false);
   const cartEndRef = useRef<HTMLDivElement>(null);
@@ -140,7 +143,8 @@ const Stage: React.FC<StageProps> = ({
     dispatch({ type: 'CANCEL_EDIT' });
   };
 
-  const { isProcessing, processPayment } = useCheckout();
+
+  const { isProcessing, processPayment, luckyWinner, setLuckyWinner } = useCheckout();
 
   const handlePayment = async (
     method: PaymentMethod,
@@ -185,11 +189,16 @@ const Stage: React.FC<StageProps> = ({
     };
 
     // We don't necessarily need to block UI for API success, but let's log it
-    // But for Receipt Printing, we need the Order ID. The Mock `checkoutPayload` has it.
-
-    OrderService.checkout(checkoutPayload).catch((err) => {
+    // 3. Call Checkout API for persistence & inventory (Wait for Lucky Winner)
+    try {
+      const apiResult = await OrderService.checkout(checkoutPayload);
+      if (apiResult.success && apiResult.luckyWinner) {
+        console.log('[Stage] Lucky Winner Triggered via API!');
+        setLuckyWinner(true);
+      }
+    } catch (err) {
       console.error('[Stage] API Checkout Background Error:', err);
-    });
+    }
 
     // 3. Once payment is successful, finalize order record in local state
     dispatch({
@@ -289,10 +298,16 @@ const Stage: React.FC<StageProps> = ({
                 {profile.name}
               </span>
             </div>
-            <div className="flex items-center space-x-2 text-[10px] text-zinc-500 font-mono mt-0.5">
-              <span>PTS: {profile.currentPoints.toFixed(2)}</span>
+            <div className="flex items-center space-x-2 text-[10px] text-zinc-600 dark:text-zinc-400 font-mono mt-0.5">
+              <span className="font-bold">PTS: {profile.currentPoints.toFixed(2)}</span>
+              <button
+                onClick={() => setIsRedemptionOpen(true)}
+                className="bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors ml-1"
+              >
+                Redeem
+              </button>
               <span>•</span>
-              <span>VISITS: {profile.totalPunches}</span>
+              <span className="font-bold">VISITS: {profile.totalPunches}</span>
             </div>
           </div>
         </div>
@@ -342,6 +357,30 @@ const Stage: React.FC<StageProps> = ({
         />
       )}
 
+      {isRedemptionOpen && state.loyaltyProfile && (
+        <RedemptionModal
+          isOpen={isRedemptionOpen}
+          onClose={() => setIsRedemptionOpen(false)}
+          profile={state.loyaltyProfile}
+          onRedeemSuccess={(newBalance) => {
+            if (state.loyaltyProfile) {
+              dispatch({
+                type: 'SET_LOYALTY_PROFILE',
+                payload: { ...state.loyaltyProfile, currentPoints: newBalance },
+              });
+            }
+          }}
+        />
+      )}
+
+      {/* --- LUCKY WINNER MODAL --- */}
+      {luckyWinner && (
+        <LuckyWinnerModal
+          isOpen={luckyWinner}
+          onClose={() => setLuckyWinner(false)}
+        />
+      )}
+
       {/* --- TOP SECTION: MENU OR BUILDER --- */}
       <div
         className={`
@@ -355,6 +394,7 @@ const Stage: React.FC<StageProps> = ({
             onGuestAccess={handleLoyaltyGuest}
             onLoginSuccess={handleLoyaltyLogin}
             isAddMode={state.items.length > 0} // Skip splash if items are in cart
+            onManualIssue={() => setLuckyWinner(true)}
           />
         )}
 
@@ -671,20 +711,20 @@ const Stage: React.FC<StageProps> = ({
         </div>
 
         <div className="h-14 shrink-0 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center px-4 md:px-6 shadow-inner z-20 overflow-hidden">
-          <div className="flex-1 flex items-center justify-between font-mono text-zinc-500 text-[10px] md:text-xs xl:text-sm border-r border-zinc-200 dark:border-zinc-800 pr-3 md:pr-6 mr-3 md:mr-6">
+          <div className="flex-1 flex items-center justify-between font-mono text-zinc-600 dark:text-zinc-400 text-[10px] md:text-xs xl:text-sm border-r border-zinc-200 dark:border-zinc-800 pr-3 md:pr-6 mr-3 md:mr-6">
             <span className="truncate">SUBTOTAL</span>
-            <span className="text-zinc-900 dark:text-zinc-300">${total.toFixed(2)}</span>
+            <span className="text-zinc-900 dark:text-white font-bold">${total.toFixed(2)}</span>
           </div>
-          <div className="flex-1 flex items-center justify-between font-mono text-zinc-500 text-[10px] md:text-xs xl:text-sm border-r border-zinc-200 dark:border-zinc-800 pr-3 md:pr-6 mr-3 md:mr-6">
+          <div className="flex-1 flex items-center justify-between font-mono text-zinc-600 dark:text-zinc-400 text-[10px] md:text-xs xl:text-sm border-r border-zinc-200 dark:border-zinc-800 pr-3 md:pr-6 mr-3 md:mr-6">
             <span className="truncate">TAX</span>
-            <span className="text-zinc-900 dark:text-zinc-300">${tax.toFixed(2)}</span>
+            <span className="text-zinc-900 dark:text-white font-bold">${tax.toFixed(2)}</span>
           </div>
-          <div className="flex-1 flex items-center justify-between font-mono text-zinc-500 text-[10px] md:text-xs xl:text-sm border-r border-zinc-200 dark:border-zinc-800 pr-3 md:pr-6 mr-3 md:mr-6">
+          <div className="flex-1 flex items-center justify-between font-mono text-zinc-600 dark:text-zinc-400 text-[10px] md:text-xs xl:text-sm border-r border-zinc-200 dark:border-zinc-800 pr-3 md:pr-6 mr-3 md:mr-6">
             <span className="truncate">ITEMS</span>
-            <span className="text-zinc-900 dark:text-zinc-300">{state.items.length}</span>
+            <span className="text-zinc-900 dark:text-white font-bold">{state.items.length}</span>
           </div>
           <div className="flex-[1.5] flex items-center justify-between min-w-0">
-            <span className="font-bold text-xs md:text-sm xl:text-base text-zinc-400 uppercase tracking-wide truncate mr-2">
+            <span className="font-bold text-xs md:text-sm xl:text-base text-zinc-500 dark:text-zinc-400 uppercase tracking-wide truncate mr-2">
               Total Due
             </span>
             <span className="font-mono text-lg md:text-2xl xl:text-3xl font-bold text-lime-600 dark:text-lime-400 truncate">
