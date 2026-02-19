@@ -5,6 +5,7 @@ import { Play, Pause, Square, ArrowRight, Clock, AlertTriangle } from 'lucide-re
 import { Timer } from './status';
 import { BakingView } from './engines/BakingView';
 import { SauceView } from './engines/SauceView';
+import { PrepDashboard } from './PrepDashboard';
 import { mockRecipes } from '../lib/mockData';
 
 export function FlightControl() {
@@ -15,11 +16,8 @@ export function FlightControl() {
 
     if (!selectedTask) {
         return (
-            <div className="flex flex-col items-center justify-center bg-ink-500 h-[calc(100vh-144px)]">
-                <div className="text-gray-400 text-lg mb-4">No active tasks. Start a prep batch?</div>
-                <Button size="lg" onClick={() => usePrepStore.getState().loadSchedule()}>
-                    Load Schedule
-                </Button>
+            <div className="p-4 h-screen pt-4 overflow-hidden">
+                <PrepDashboard />
             </div>
         );
     }

@@ -16,66 +16,73 @@ export class InventoryService {
     static async deductOrderInventory(orderId: string, items: any[]) {
         console.log(`[Inventory] Processing depletion for order ${orderId}...`);
 
-        for (const item of items) {
-            try {
-                // 1. Fetch the product and its assembly recipe
-                const product = await db.query.products.findFirst({
-                    where: eq(schema.products.id, item.productId),
-                    with: {
-                        recipe: {
-                            with: {
-                                ingredients: true
+        await db.transaction(async (tx) => {
+            for (const item of items) {
+                try {
+                    // 1. Fetch the product and its assembly recipe
+                    const product = await tx.query.products.findFirst({
+                        where: eq(schema.products.id, item.productId),
+                        with: {
+                            recipe: {
+                                with: {
+                                    ingredients: true
+                                }
                             }
                         }
+                    });
+
+                    if (!product || !product.recipe) {
+                        console.warn(`[Inventory] No recipe found for product: ${item.name} (${item.productId})`);
+                        continue;
                     }
-                });
 
-                if (!product || !product.recipe) {
-                    console.warn(`[Inventory] No recipe found for product: ${item.name} (${item.productId})`);
-                    continue;
-                }
+                    const quantity = item.quantity || 1;
 
-                const quantity = item.quantity || 1;
+                    // 2. Loop through ingredients and deduct
+                    for (const ingredient of product.recipe.ingredients) {
+                        const totalDeduction = ingredient.quantity * quantity;
 
-                // 2. Loop through ingredients and deduct
-                for (const ingredient of product.recipe.ingredients) {
-                    const totalDeduction = ingredient.quantity * quantity;
+                        console.log(`[Inventory] Deducting ${totalDeduction} of item ${ingredient.inventoryItemId} for ${item.name}`);
 
-                    console.log(`[Inventory] Deducting ${totalDeduction} of item ${ingredient.inventoryItemId} for ${item.name}`);
+                        // Update stock
+                        await tx.update(schema.inventoryItems)
+                            .set({
+                                currentStock: sql`${schema.inventoryItems.currentStock} - ${totalDeduction}`
+                            })
+                            .where(eq(schema.inventoryItems.id, ingredient.inventoryItemId));
 
-                    // Update stock
-                    await db.update(schema.inventoryItems)
-                        .set({
-                            currentStock: sql`${schema.inventoryItems.currentStock} - ${totalDeduction}`
-                        })
-                        .where(eq(schema.inventoryItems.id, ingredient.inventoryItemId));
-
-                    // Record transaction
-                    await db.insert(schema.inventoryTransactions).values({
-                        id: `tx_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-                        inventoryItemId: ingredient.inventoryItemId,
-                        type: 'SALE',
-                        quantity: -totalDeduction,
-                        reason: `Order Sale: ${orderId}`,
-                        referenceId: orderId,
-                        timestamp: Date.now()
-                    });
-
-                    // Fetch updated stock level for broadcast
-                    const updatedItem = await db.query.inventoryItems.findFirst({
-                        where: eq(schema.inventoryItems.id, ingredient.inventoryItemId)
-                    });
-
-                    if (updatedItem) {
-                        socketService.emit('inventory:updated', {
-                            id: updatedItem.id,
-                            currentStock: updatedItem.currentStock
+                        // Record transaction
+                        await tx.insert(schema.inventoryTransactions).values({
+                            id: `tx_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                            inventoryItemId: ingredient.inventoryItemId,
+                            type: 'SALE',
+                            quantity: -totalDeduction,
+                            reason: `Order Sale: ${orderId}`,
+                            referenceId: orderId,
+                            timestamp: Date.now()
                         });
+
+                        // Fetch updated stock level for broadcast
+                        const updatedItem = await tx.query.inventoryItems.findFirst({
+                            where: eq(schema.inventoryItems.id, ingredient.inventoryItemId)
+                        });
+
+                        if (updatedItem) {
+                            socketService.emit('inventory:updated', {
+                                id: updatedItem.id,
+                                currentStock: updatedItem.currentStock
+                            });
+                        }
                     }
+                } catch (err) {
+                    console.error(`[Inventory] Failed to deduct inventory for item ${item.name}:`, err);
+                    // We don't necessarily want to fail the whole transaction if one product fails?
+                    // Actually, usually we DO. If one item in the order fails, the whole audit is suspect.
+                    // But if it's "missing recipe", that's a data config issue.
+                    // Let's re-throw to rollback if it's a DB error.
+                    throw err;
                 }
-            } catch (err) {
-                console.error(`[Inventory] Failed to deduct inventory for item ${item.name}:`, err);
             }
-        }
+        });
     }
 }

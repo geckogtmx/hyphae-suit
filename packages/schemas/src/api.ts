@@ -5,11 +5,11 @@ import { z } from 'zod';
 export const AnalyzePayloadSchema = z.object({
     transactions: z.array(z.any()).optional(), // Refine type later if possible
     menu: z.array(z.any()), // Refine type later if possible
-});
+}).strict();
 
 export const KitchenNotePayloadSchema = z.object({
     productName: z.string().min(1),
-});
+}).strict();
 
 export const CheckoutPayloadSchema = z.object({
     id: z.string(),
@@ -19,7 +19,7 @@ export const CheckoutPayloadSchema = z.object({
         price: z.number(),
         quantity: z.number(),
         modifiers: z.string().optional(),
-    })),
+    }).strict()),
     subtotal: z.number(),
     tax: z.number(),
     total: z.number(),
@@ -28,12 +28,12 @@ export const CheckoutPayloadSchema = z.object({
         method: z.string(),
         amount: z.number(),
         transactionId: z.string().optional(),
-    }),
+    }).strict(),
     staffId: z.string().optional(),
     loyaltyProfileId: z.string().optional(),
     storeId: z.string().optional().default('default-store'),
     terminalId: z.string().optional().default('pos-1'),
-});
+}).strict();
 
 export type AnalyzePayload = z.infer<typeof AnalyzePayloadSchema>;
 export type KitchenNotePayload = z.infer<typeof KitchenNotePayloadSchema>;

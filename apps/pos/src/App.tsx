@@ -42,7 +42,6 @@ const AppContent = ({ onLogout }: { onLogout: () => void }) => {
   const [isSwapped, setIsSwapped] = useState(false);
 
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [showToast] = useState(false);
   const [viewMode, setViewMode] = useState<'POS' | 'SETTINGS'>('POS');
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -223,17 +222,19 @@ const queryClient = new QueryClient({
 });
 
 const AppShell = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
-  // Auto-login from persisted session
-  useEffect(() => {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
     const savedSession = AuthService.getStoredSession();
-    if (savedSession && savedSession.token) {
-      console.log("Restoring session:", savedSession.staff);
-      setCurrentUser(savedSession.staff);
-      setIsAuthenticated(true);
-    }
+    return !!(savedSession && savedSession.token);
+  });
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const savedSession = AuthService.getStoredSession();
+    return savedSession?.staff || null;
+  });
+
+  // Sessions are already initialized above, no need for sync effect
+  useEffect(() => {
+    // Keeping as empty if we need future hydration logic, 
+    // but the actual sync happened in initializer.
   }, []);
 
   const handleLoginSuccess = (staff: any) => {

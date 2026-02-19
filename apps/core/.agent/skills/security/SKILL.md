@@ -5,7 +5,7 @@ description: Enforces mandatory security guidelines for Hyphae POS. Covers Datab
 
 # Security Officer (Hyphae POS Edition)
 
-This skill mandates security practices for Phase 2+ of Loome Engine / Hyphae POS.
+This skill mandates security practices for Phase 2+ of Hyphae POS.
 
 ## 1. Database Security (Drizzle & LibSQL)
 

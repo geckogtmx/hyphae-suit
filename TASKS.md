@@ -12,7 +12,7 @@
 - [x] **Loyalty Registration (Backend)**: Added `POST /api/loyalty/register` and Service Method.
 - [x] **Loyalty Registration (UI)**: Implemented via "Lucky Issuance" flow & Manual Trigger (Code 0000).
 - [x] **Token Swapping**: Added Manager override to swap physical cards.
-- [ ] **E2E Verification**: Manually verify full loop: Loyalty Login -> Order -> Pay -> Kitchen.
+- [x] **E2E Verification**: Verified Loyalty Login -> Order -> Pay -> Database Persistence (Profile: BEE101). Next: Verify Kitchen routing.
 
 ---
 
@@ -27,6 +27,13 @@
 
 ---
 
+- [x] **Production Hardening**: Rate limiting, security headers, log redaction, API key enforcement.
+- [x] **BOH Expansion**: Implemented Prep Dashboard & Kitchen Codex (Recipe Library).
+
+---
+
 ## 📋 On Deck
-- [ ] **Production Hardening**: Rate limiting, security headers.
-- [ ] **BOH Updates**: Add "Prep View" for non-KDS stations.
+- [ ] **BOH Receiving**: Build workflow for checking in supplier deliveries and stocking inventory.
+- [ ] **Live Prep Sync**: Bind KDS orders to real-time prep lists for station awareness.
+- [ ] **Shift Log/HACCP**: Implement mandatory temperature checkpoints & shift handover logs.
+- [ ] **Loyalty Redemption UI**: Finish connecting Gold/Vip perk selection in POS cart.

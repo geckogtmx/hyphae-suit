@@ -64,6 +64,7 @@ The following rules are enforced across the entire monorepo:
 
 ## 6. Maintenance Log
 
+- **2026-02-19**: **Production Hardening & Stabilization**. Hardened the API with environment-driven CORS, log redaction for sensitive fields (PINs), and optimized rate limiting. Enforced strict API key authentication for non-public routes. Improved database reliability by wrapping inventory depletion logic in atomic transactions. Resolved high-volume lint errors in the POS application, including React state-in-effect warnings and deprecated triple-slash references. Verified full Loyalty->Order->Pay loop with database persistence for card `BEE101`.
 - **2026-02-19**: Fixed Loyalty Registration "Error Persists" loop. Identified and resolved a critical database schema mismatch (missing `is_physical_card` column). Enforced the **Inverted Abyssal Theme** scale across all loyalty components, ensuring dark backgrounds and high contrast. Fixed the POS "Start Order" button by implementing a `cardNumber` fallback for the legacy `activeCard` structure. Standardized loyalty API queries to prevent camelCase/snake_case mismatches.
 - **2026-02-17**: Completed POS Phase 3 (Backend Integration). Added Inventory Depletion, Loyalty System, and real-time checkout sync. Resolved BOH routing duplication and standardized human-friendly Order IDs (P1-101). Fixed React infinite loops and missing `useCallback` imports.
 - **2026-02-12**: Consolidatd `GEMINI.md` to root.

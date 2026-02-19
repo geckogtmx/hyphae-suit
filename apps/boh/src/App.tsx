@@ -4,7 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { FlightControl } from './components/flight-control';
 import { InventoryDashboard } from './components/inventory/dashboard';
 import { ReceivingForm } from './components/inventory/receiving';
-// import { RecipesList } from './components/recipes'; // Planning
+import { RecipesList } from './components/RecipesList';
 import { OrderView } from './components/orders/OrderView';
 
 function App() {
@@ -20,7 +20,7 @@ function App() {
           {activeRoute === 'kds' && <OrderView />}
           {activeRoute === 'inventory' && <InventoryDashboard />}
           {activeRoute === 'receiving' && <div className="p-4 h-full flex items-center justify-center"><ReceivingForm /></div>}
-          {activeRoute === 'recipes' && <div className="p-10 text-center text-gray-400">Recipe Library (Coming Phase 2.3)</div>}
+          {activeRoute === 'recipes' && <RecipesList />}
           {activeRoute === 'ops' && <div className="p-10 text-center text-gray-400">Ops/Shift Log (Coming Phase 4)</div>}
         </main>
 

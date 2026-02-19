@@ -17,6 +17,7 @@ interface PrepStore {
     startTask: (taskId: string) => void;
     pauseTask: (taskId: string) => void;
     completeTask: (taskId: string) => void;
+    addTaskFromRecipe: (recipeId: string, quantity: number) => void;
 }
 
 export const usePrepStore = create<PrepStore>((set) => ({
@@ -57,6 +58,24 @@ export const usePrepStore = create<PrepStore>((set) => ({
         set((state) => ({
             activeTasks: state.activeTasks.filter((t) => t.id !== taskId),
             selectedTask: state.activeTasks.find((t) => t.id !== taskId) || null
+        }));
+    },
+
+    addTaskFromRecipe: (recipeId, quantity) => {
+        const newTask: PrepTask = {
+            id: `task_${Date.now()}`,
+            scheduleId: 'manual',
+            recipeId,
+            targetQuantity: quantity,
+            unit: 'batches',
+            assignedDay: new Date().toISOString().split('T')[0],
+            estimatedMinutes: 30, // Default estimate
+            status: 'pending'
+        };
+
+        set((state) => ({
+            activeTasks: [...state.activeTasks, newTask],
+            selectedTask: newTask // Auto-select the newly added manual task
         }));
     },
 }));

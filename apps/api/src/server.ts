@@ -15,15 +15,22 @@ import { db, schema, desc, eq, sql } from '@hyphae/database';
 dotenv.config();
 
 const server = Fastify({
-    logger: true
+    logger: {
+        level: 'info',
+        redact: ['req.body.pin', 'body.pin', 'pin'], // Protect PINs from logs
+    }
 });
 
 // Configure CORS
-server.register(cors, {
-    origin: [
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : [
         'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175',
         'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'
-    ], // Core, POS, BOH (both localhost and IP)
+    ];
+
+server.register(cors, {
+    origin: allowedOrigins, // Configurable via .env
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 });
@@ -33,10 +40,11 @@ server.register(helmet, {
     contentSecurityPolicy: false, // Disable for API-only to avoid complexity with Gemini URLs
 });
 
-// Rate Limiting
+// Rate Limiting - Optimized for Multiple POS Terminals
 server.register(rateLimit, {
-    max: 100,
+    max: 200, // Higher limit to accommodate active shifts across terminals
     timeWindow: '1 minute',
+    allowList: ['127.0.0.1'], // Allow local traffic if needed (careful in prod)
     errorResponseBuilder: (request, context) => ({
         error: 'Too many requests',
         message: `Rate limit exceeded. Try again in ${context.after}`,
@@ -118,10 +126,9 @@ server.addHook('preHandler', async (request, reply) => {
             reply.code(401).send({ error: 'Unauthorized: Invalid Token' });
         }
     } else {
-        // Strict Mode if hyphaeKey is set
+        // Strict Mode: Enforce credentials if configured
         if (hyphaeKey) {
-            // reply.code(401).send({ error: 'Unauthorized: Missing Credentials' });
-            // Temporary fallback until POS is fully token-aware
+            reply.code(401).send({ error: 'Unauthorized: Missing or Invalid Credentials' });
         }
     }
 });
@@ -402,8 +409,9 @@ server.post('/api/order/checkout', async (request, reply) => {
         });
 
         // 2. Async Inventory Deduction (Non-blocking)
+        // Note: Handled within Service with its own error handling
         InventoryService.deductOrderInventory(payload.id, payload.items).catch((err: any) => {
-            console.error('[CheckoutAPI] Inventory deduction failed:', err);
+            console.error('[CheckoutAPI] Inventory deduction background failure:', err);
         });
 
         // 3. Lucky Issuance Logic (10% Chance for Guests)
