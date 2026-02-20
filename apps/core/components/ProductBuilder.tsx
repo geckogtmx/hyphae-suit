@@ -99,6 +99,33 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
     const activeVisualStep = visualSteps.find((s) => s.id === selectedStepId) || (visualSteps.length > 0 ? visualSteps[0] : null);
     const isActiveStepRoot = selectedStepId === 'ROOT';
 
+    const calculateItemCost = (metadata: Product['inventoryMetadata'] | ModifierOption['inventoryMetadata']): number => {
+        if (!metadata) return 0;
+        let totalCost = 0;
+        if (metadata.recipeId) {
+            const recipe = recipes.find(r => r.id === metadata.recipeId);
+            if (recipe && recipe.components) {
+                recipe.components.forEach(comp => {
+                    const invItem = inventory.find(i => i.id === comp.inventoryItemId);
+                    if (invItem) {
+                        totalCost += (comp.quantity * invItem.costPerUnit);
+                    }
+                });
+            }
+        } else if (metadata.directDepletion) {
+            metadata.directDepletion.forEach(comp => {
+                const invItem = inventory.find(i => i.id === comp.inventoryItemId);
+                if (invItem) {
+                    totalCost += (comp.quantity * invItem.costPerUnit);
+                }
+            });
+        }
+        return totalCost;
+    };
+
+    const rootCost = isActiveStepRoot && activeSequence ? calculateItemCost(activeSequence.inventoryMetadata) : 0;
+    const rootMargin = isActiveStepRoot && activeSequence && activeSequence.price > 0 ? ((activeSequence.price - rootCost) / activeSequence.price) * 100 : 0;
+
     // Handle Mouse Wheel for Horizontal Scrolling on Timeline
     useEffect(() => {
         const element = timelineRef.current;
@@ -442,24 +469,42 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
 
                                         {isActiveStepRoot && (
                                             <>
-                                                <div>
-                                                    <label className="block text-xs font-mono text-gray-500 mb-1">
-                                                        Base Price
-                                                    </label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                                                            $
-                                                        </span>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={activeSequence.price}
-                                                            onChange={(e) => {
-                                                                const val = parseFloat(e.target.value);
-                                                                updateRootItem({ price: isNaN(val) ? 0 : val });
-                                                            }}
-                                                            className="w-full bg-black/40 border border-white/10 rounded-lg pl-6 pr-3 py-2 text-white focus:border-brand outline-none font-mono"
-                                                        />
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-mono text-gray-500 mb-1">
+                                                            Standard Cost
+                                                        </label>
+                                                        <div className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-gray-400 font-mono">
+                                                            ${rootCost.toFixed(2)}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-mono text-gray-500 mb-1">
+                                                            Base Price
+                                                        </label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                                                $
+                                                            </span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={activeSequence.price}
+                                                                onChange={(e) => {
+                                                                    const val = parseFloat(e.target.value);
+                                                                    updateRootItem({ price: isNaN(val) ? 0 : val });
+                                                                }}
+                                                                className="w-full bg-black/40 border border-brand/30 rounded-lg pl-6 pr-3 py-2 text-white focus:border-brand outline-none font-mono font-bold"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-mono text-gray-500 mb-1">
+                                                            Gross Margin
+                                                        </label>
+                                                        <div className={`bg-black/40 border ${rootMargin > 60 ? 'border-emerald-500/30 text-emerald-400' : rootMargin > 0 ? 'border-brand/30 text-brand' : 'border-red-500/30 text-red-400'} rounded-lg px-3 py-2 font-mono font-bold`}>
+                                                            {rootMargin.toFixed(1)}%
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="p-4 bg-brand/5 rounded-xl border border-brand/20">
@@ -618,11 +663,20 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                                                 className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
                                                             >
                                                                 <option value="">-- Select Recipe --</option>
-                                                                {recipes.map(r => (
-                                                                    <option key={r.id} value={r.id}>
-                                                                        {r.name} ({r.yieldQuantity} {r.yieldUnit})
-                                                                    </option>
-                                                                ))}
+                                                                <optgroup label="Assembly (Sales)">
+                                                                    {recipes.filter(r => r.type === 'ASSEMBLY').map(r => (
+                                                                        <option key={r.id} value={r.id}>
+                                                                            {r.name} ({r.yieldQuantity} {r.yieldUnit})
+                                                                        </option>
+                                                                    ))}
+                                                                </optgroup>
+                                                                <optgroup label="Batch (Prep)">
+                                                                    {recipes.filter(r => r.type === 'BATCH').map(r => (
+                                                                        <option key={r.id} value={r.id}>
+                                                                            {r.name} ({r.yieldQuantity} {r.yieldUnit})
+                                                                        </option>
+                                                                    ))}
+                                                                </optgroup>
                                                             </select>
                                                         </div>
                                                     )}
@@ -824,8 +878,13 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                                                                     <option key={i.id} value={`STOCK:${i.id}`}>{i.name}</option>
                                                                                 ))}
                                                                             </optgroup>
-                                                                            <optgroup label="Recipes">
-                                                                                {recipes.map(r => (
+                                                                            <optgroup label="Assembly Recipes">
+                                                                                {recipes.filter(r => r.type === 'ASSEMBLY').map(r => (
+                                                                                    <option key={r.id} value={`RECIPE:${r.id}`}>{r.name}</option>
+                                                                                ))}
+                                                                            </optgroup>
+                                                                            <optgroup label="Batch Recipes">
+                                                                                {recipes.filter(r => r.type === 'BATCH').map(r => (
                                                                                     <option key={r.id} value={`RECIPE:${r.id}`}>{r.name}</option>
                                                                                 ))}
                                                                             </optgroup>

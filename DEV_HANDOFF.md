@@ -1,67 +1,49 @@
 # DEV_HANDOFF.md
 
-> **Last Updated:** 2026-02-19 (Night Session)
+> **Last Updated:** 2026-02-20
 > **Last Model:** Gemini (Antigravity)
-> **Session Focus:** Menu Archival & Recovery (Soft-Delete)
+> **Session Focus:** Phase 1 Completion & Phase 2 Transition
 
 ---
 
 ## ✅ Completed This Session
 
-- **Menu Archival (Recycle Bin)**:
-    - **Database**: Added `deletedAt` column to `products` table in `packages/database/src/schema.ts`.
-    - **API**: Implemented soft-delete lifecycle in `apps/api/src/server.ts`.
-        - `DELETE /api/products/:id`: Sets `deletedAt` timestamp (Soft-Delete).
-        - `GET /api/products/trash`: Retrieves archived items.
-        - `POST /api/products/:id/restore`: Resets `deletedAt` to `null`.
-        - `DELETE /api/products/:id/permanent`: Purges product and modifier links from DB.
-    - **Core UI**:
-        - Added **"Recycle Bin"** toggle to the dashboard with a "Live Pulse" (Red glow when trash is not empty).
-        - Enhanced `ProductBuilder.tsx` with **Trash Mode**: Displays archived items with Restore and Permanent Delete actions.
-        - Fixed **State Sync**: `handleSave` now updates both `active` and `trash` states, preventing "price reverts" when editing archived items.
-        - Optimized **Product Selection**: Selection no longer jumps back to the first item after a save operation.
-- **Bug Fixes**:
-    - Resolved a critical **API Route Registration** bug in `server.ts` where a missing closing brace nested product routes inside incorrect handlers, breaking Deletion/Restoration.
-    - Fixed **Inventory Transfer** endpoint which was accidentally removed during a previous merge/edit.
+- **Phase 1 Completion**:
+    - Finalized the `ProductBuilder.tsx` to distinguish between BATCH and ASSEMBLY recipes and integrated live Margin/Cost algorithms.
+    - Built the CORE Forecast Engine (Logic + UI) to parse target sales into RAW inventory shopping lists.
+    - Finalized explicit `Load/Return Cart` transaction API mechanics for `stockKitchen` and `stockStand` (Phase 1.3).
+- **Governance Update**:
+    - Updated `GEMINI.md` and `TASKS.md` to reflect Phase 1 completion and to elevate Phase 2 (Localizing the BOH) as the primary focus.
 
-## ⚠️ Known Issues / Broken
+## ⚠️ Known Issues / Blockers
 
-- **Modifier Option Selection**: In the `ProductBuilder`, editing a modifier option sometimes doesn't immediately reflect in the sidebar preview until a save is performed.
-- **Performance**: As the product list grows, the full-list upsert in `ApiClient.updateProducts` (PUT `/api/products`) may become a bottleneck. Move to granular PATCH updates for Phase 4.
+- No code blockers. 
 
 ## 🔄 In Progress / Pending
 
-- [ ] **Global Soft-Delete**: Consider extending the `deletedAt` pattern to `recipes` and `inventoryItems` for consistency.
-- [ ] **E2E Tests**: Need Playwright tests for the full "Delete -> Review -> Restore" cycle.
+- **Phase 2.1: Supplier Reception (BOH)**: We need to build the incoming shipment intake tablet view.
 
 ## 📋 Instructions for Next Model
 
-1. **Verify Checkout Integration**:
-   - Ensure soft-deleted products are NOT available for selection in the POS.
-   - Verify that and existing carts containing a now-deleted item handle the error gracefully (or prevent it).
-2. **Refine UI Indicators**:
-   - Add a "Date Deleted" sort or label in the Recycle Bin view.
-3. **Audit Modifiers**: 
-   - Ensure that permanently deleting a product correctly cleans up its entries in the `productModifiers` table (Logic is in `server.ts` transaction, but needs visual verification).
+1. **Read Governance**: Read `DEVELOPMENT_PLAN_V2.md` Phase 2 and `TASKS.md`.
+2. **Begin Phase 2 (Localizing the BOH)**: Your immediate objective is to open `apps/boh` and begin implementing the UI/workflows for goods reception based on the recently finalized `suppliers` and `inventoryItems` tables.
+3. **Strict Adherence**: Focus strictly on the BOH app bridging with the Core API before moving deeper into the workflow.
 
 ### Key Files
-- `apps/api/src/server.ts`: Updated with soft-delete endpoints.
-- `apps/core/components/ProductBuilder.tsx`: Trash mode logic and UI.
-- `apps/core/App.tsx`: State management for trash/active sync.
+- `DEVELOPMENT_PLAN_V2.md`: The supreme architectural blueprint.
+- `TASKS.md`: Granular checklist for Phase 2.
+- `apps/boh/src/*`: The target environment.
 
 ---
 
 ## Session Log (Last 3 Sessions)
 
-### 2026-02-19 (6) - Gemini (Antigravity)
+### 2026-02-20 - Gemini (Antigravity)
+- **Phase 1 Completion**: Finished Recipe Builder, Forecast Engine, and Stand Transfer architecture. Transitioning to Phase 2 (BOH).
+
+### 2026-02-20 - Gemini (Antigravity)
+- **V2 Blueprint**: Rebuilt the architectural vision into a 5-app ecosystem. Defined true offline POS and the CORE->BOH->POS data flow.
+
+### 2026-02-19 - Gemini (Antigravity)
 - **Archival**: Implemented "Recycle Bin" for menu items.
 - **API Fix**: Resolved nested route registration bug breaking deletion.
-- **UI Fix**: Fixed "Price not saving" by syncing multiple local states.
-
-### 2026-02-19 (5) - Gemini (Antigravity)
-- **Data Integrity**: Unified data sources for BOH, POS, Core.
-- **Fix**: Resolved API startup crash (Duplicate Route).
-
-### 2026-02-19 (4) - Gemini (Antigravity)
-- **Menu Builder**: Implemented full linking of Products to Recipes/Inventory.
-- **API**: Added Product CRUD with nested modifier support.

@@ -8,18 +8,28 @@ Hyphae Suit is a unified Point of Sale (POS) ecosystem designed for modern hospi
 
 1.  **@hyphae/pos** (`apps/pos`)
     *   **Role:** The client-facing Tablet POS application used by staff for order entry and payments.
-    *   **Stack:** React 19, Vite, Tailwind CSS, IndexedDB (Offline-first).
-    *   **Key Features:** Offline support, complex modifier handling, hardware integration (printers/terminals).
+    *   **Stack:** React 19, Vite, Tailwind CSS, LibSQL/RxDB (Local Replica).
+    *   **Key Features:** True Offline-First (local database engine), The Vault (Cash Management), complex modifier handling.
 
 2.  **@hyphae/core** (`apps/core`)
-    *   **Role:** The central nervous system; provides the Backend API and Admin Dashboard.
+    *   **Role:** The central nervous system; provides the Backend API, Admin Dashboard, and AI Forecast Engine.
     *   **Stack:** React 19 (Dashboard), Fastify (API), Drizzle ORM, SQLite/Postgres.
-    *   **Key Features:** Menu management, real-time WebSocket gateway, data synchronization, analytics.
+    *   **Key Features:** Supplier/Inventory hub, Recipe architect, Master Sync Engine.
 
 3.  **@hyphae/boh** (`apps/boh`)
-    *   **Role:** The Kitchen Display System (KDS) for back-of-house operations.
+    *   **Role:** The Kitchen Display System (KDS) and Prep Kitchen Helper.
     *   **Stack:** React 19, Vite, Tailwind CSS.
-    *   **Key Features:** Real-time order tickets, prep management, station routing.
+    *   **Key Features:** Receiving goods, Batch prep guidance, waste tracking.
+
+4.  **@hyphae/market** (`apps/market`)
+    *   **Role:** Mobile Shopping Companion for the Runner.
+    *   **Stack:** React 19, Vite (PWA).
+    *   **Key Features:** Offline shopping lists sourced from CORE forecasting.
+
+5.  **@hyphae/patron** (`apps/patron`)
+    *   **Role:** Customer-facing storefront and loyalty hub.
+    *   **Stack:** React 19, Vite (PWA).
+    *   **Key Features:** Dynamic cart location, loyalty QR scanning, mobile ordering.
 
 ### Shared Infrastructure (`packages/`)
 
@@ -29,12 +39,13 @@ Hyphae Suit is a unified Point of Sale (POS) ecosystem designed for modern hospi
 *   **@hyphae/config:** Shared configurations for **TypeScript**, **ESLint**, and **Prettier** to enforce code quality standards.
 *   **@hyphae/utils:** Pure utility functions for currency formatting, date manipulation, and common algorithms.
 
-## Data Flow
+## Data Flow (The Golden Pipeline)
 
-1.  **Menu Updates:** Created in `@hyphae/core` (Admin) -> Stored in DB -> Synced to `@hyphae/pos` via API/WebSockets.
-2.  **Order Entry:** Created in `@hyphae/pos` (Offline-first) -> Queued locally (IndexedDB) -> Synced to `@hyphae/core` API.
-3.  **Kitchen Routing:** `@hyphae/core` processes order -> Pushes real-time event to `@hyphae/boh`.
-4.  **Status Sync:** BOH updates status ("Cooking" -> "Ready") -> `@hyphae/core` updates DB -> Pushes update to `@hyphae/pos`.
+1.  **Sourcing & Menu Config:** Created in `@hyphae/core` (Suppliers, Inventory, Recipes) -> Stored in central DB.
+2.  **POS Sync:** Background Sync Engine pushes Menu/Pricing down to `@hyphae/pos` local database replica.
+3.  **Order Entry:** Created in `@hyphae/pos` (Offline-first) -> Written purely to local DB -> Synced back to `@hyphae/core` API via background replication.
+4.  **Kitchen Prep:** `@hyphae/boh` guides staff to turn RAW inventory into PREP items.
+5.  **Explosion Engine:** `@hyphae/core` syncs sold orders from POS -> Explodes Assembly Recipes -> Deducts PREP ingredients globally.
 
 ## Deployment Strategy
 

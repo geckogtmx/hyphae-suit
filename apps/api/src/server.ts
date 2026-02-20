@@ -183,6 +183,185 @@ server.get('/api/categories', async (request, reply) => {
     }
 });
 
+// --- SUPPLIER ROUTES ---
+server.get('/api/suppliers', async (request, reply) => {
+    try {
+        const suppliersList = await db.query.suppliers.findMany({
+            with: { orders: true }
+        });
+        return suppliersList;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: "Failed to fetch suppliers" });
+    }
+});
+
+server.post('/api/suppliers', async (request, reply) => {
+    const payload = request.body as any;
+    try {
+        const id = payload.id || `sup_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        await db.insert(schema.suppliers).values({
+            id,
+            name: payload.name,
+            contactName: payload.contactName || null,
+            email: payload.email || null,
+            phone: payload.phone || null,
+            category: payload.category || 'General',
+            leadTimeDays: payload.leadTimeDays || 0
+        });
+        return { success: true, id };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: "Failed to create supplier" });
+    }
+});
+
+server.put('/api/suppliers/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const payload = request.body as any;
+    try {
+        await db.update(schema.suppliers)
+            .set({
+                name: payload.name,
+                contactName: payload.contactName,
+                email: payload.email,
+                phone: payload.phone,
+                category: payload.category,
+                leadTimeDays: payload.leadTimeDays
+            })
+            .where(eq(schema.suppliers.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: "Failed to update supplier" });
+    }
+});
+
+server.delete('/api/suppliers/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.delete(schema.suppliers).where(eq(schema.suppliers.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: "Failed to delete supplier" });
+    }
+});
+
+// --- SUPPLY ORDERS ---
+server.get('/api/supply-orders', async (request, reply) => {
+    try {
+        const orders = await db.query.supplyOrders.findMany({
+            orderBy: (supplyOrders, { desc }) => [desc(supplyOrders.placedAt)],
+            with: {
+                supplier: true,
+                items: {
+                    with: {
+                        inventoryItem: true
+                    }
+                }
+            }
+        });
+        return orders;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: "Failed to fetch supply orders" });
+    }
+});
+
+server.post('/api/supply-orders', async (request, reply) => {
+    const payload = request.body as any;
+    try {
+        const id = payload.id || `po_${Date.now()}`;
+        await db.transaction(async (tx) => {
+            await tx.insert(schema.supplyOrders).values({
+                id,
+                supplierId: payload.supplierId,
+                status: payload.status || 'DRAFT',
+                placedAt: payload.status !== 'DRAFT' ? Date.now() : null,
+                totalCost: payload.totalCost || 0
+            });
+            if (payload.items && payload.items.length > 0) {
+                await tx.insert(schema.supplyOrderItems).values(
+                    payload.items.map((i: any) => ({
+                        id: `poi_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                        supplyOrderId: id,
+                        inventoryItemId: i.inventoryItemId,
+                        quantityOrdered: i.quantityOrdered,
+                        quantityReceived: i.quantityReceived || 0,
+                        cost: i.cost || 0
+                    }))
+                );
+            }
+        });
+        return { success: true, id };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to create supply order' });
+    }
+});
+
+server.put('/api/supply-orders/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const payload = request.body as any;
+    try {
+        await db.transaction(async (tx) => {
+            const currentOrder = await tx.query.supplyOrders.findFirst({ where: eq(schema.supplyOrders.id, id) });
+
+            await tx.update(schema.supplyOrders)
+                .set({
+                    status: payload.status,
+                    totalCost: payload.totalCost,
+                    placedAt: payload.status === 'PLACED' && currentOrder?.status !== 'PLACED' ? Date.now() : undefined,
+                    receivedAt: payload.status === 'RECEIVED' && currentOrder?.status !== 'RECEIVED' ? Date.now() : undefined
+                })
+                .where(eq(schema.supplyOrders.id, id));
+
+            await tx.delete(schema.supplyOrderItems).where(eq(schema.supplyOrderItems.supplyOrderId, id));
+
+            if (payload.items && payload.items.length > 0) {
+                await tx.insert(schema.supplyOrderItems).values(
+                    payload.items.map((i: any) => ({
+                        id: `poi_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                        supplyOrderId: id,
+                        inventoryItemId: i.inventoryItemId,
+                        quantityOrdered: i.quantityOrdered,
+                        quantityReceived: i.quantityReceived !== undefined ? i.quantityReceived : (payload.status === 'RECEIVED' ? i.quantityOrdered : 0),
+                        cost: i.cost || 0
+                    }))
+                );
+
+                if (payload.status === 'RECEIVED' && currentOrder?.status !== 'RECEIVED') {
+                    for (const item of payload.items) {
+                        const qty = item.quantityReceived !== undefined ? item.quantityReceived : item.quantityOrdered;
+                        if (qty > 0) {
+                            await tx.update(schema.inventoryItems)
+                                .set({
+                                    stockKitchen: sql`${schema.inventoryItems.stockKitchen} + ${qty}`
+                                })
+                                .where(eq(schema.inventoryItems.id, item.inventoryItemId));
+
+                            await tx.insert(schema.inventoryTransactions).values({
+                                id: `itx_recv_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                                inventoryItemId: item.inventoryItemId,
+                                type: 'RECEIVE',
+                                quantity: qty,
+                                reason: 'Purchase Order Delivered',
+                                referenceId: id,
+                                timestamp: Date.now()
+                            });
+                        }
+                    }
+                }
+            }
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update supply order' });
+    }
+});
+
 
 
 // LOGIN ROUTE

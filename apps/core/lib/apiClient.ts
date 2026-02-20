@@ -220,5 +220,132 @@ export const ApiClient = {
             console.error('Failed to permanent delete product', error);
             throw error;
         }
+    },
+
+    async getSuppliers() {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/suppliers`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch suppliers');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch suppliers', error);
+            return [];
+        }
+    },
+
+    async createSupplier(supplier: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/suppliers`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(supplier)
+            });
+            if (!response.ok) throw new Error('Failed to create supplier');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to create supplier', error);
+            throw error;
+        }
+    },
+
+    async updateSupplier(id: string, supplier: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(supplier)
+            });
+            if (!response.ok) throw new Error('Failed to update supplier');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to update supplier', error);
+            throw error;
+        }
+    },
+
+    async deleteSupplier(id: string) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+                method: 'DELETE',
+                headers
+            });
+            if (!response.ok) throw new Error('Failed to delete supplier');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to delete supplier', error);
+            throw error;
+        }
+    },
+
+    async getSupplyOrders() {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/supply-orders`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch supply orders');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch supply orders', error);
+            return [];
+        }
+    },
+
+    async createSupplyOrder(order: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/supply-orders`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(order)
+            });
+            if (!response.ok) throw new Error('Failed to create supply order');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to create supply order', error);
+            throw error;
+        }
+    },
+
+    async updateSupplyOrder(id: string, order: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/supply-orders/${id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(order)
+            });
+            if (!response.ok) throw new Error('Failed to update supply order');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to update supply order', error);
+            throw error;
+        }
+    },
+
+    async transferInventory(itemId: string, quantity: number, direction: 'EXIT' | 'INGRESS', note?: string) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/inventory/transfer`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ itemId, quantity, direction, note })
+            });
+            if (!response.ok) throw new Error('Failed to transfer inventory');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to transfer inventory', error);
+            throw error;
+        }
     }
 };

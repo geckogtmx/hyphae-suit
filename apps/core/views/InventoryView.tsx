@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Truck, AlertTriangle, CheckCircle2, Search, Filter, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Package, Truck, AlertTriangle, CheckCircle2, Search, Filter, Plus, Edit2, Trash2, ArrowRightLeft } from 'lucide-react';
 import type { InventoryItem } from '../types/schema';
 import { InventoryItemBuilder } from '../components/InventoryItemBuilder';
+import { ApiClient } from '../lib/apiClient';
 
 type InventoryItemWithSupplier = InventoryItem & {
     supplier?: any;
@@ -13,6 +14,10 @@ export const InventoryView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+    const [transferItem, setTransferItem] = useState<InventoryItem | null>(null);
+    const [transferQty, setTransferQty] = useState<number>(1);
+    const [transferDir, setTransferDir] = useState<'EXIT' | 'INGRESS'>('EXIT');
+    const [isTransferring, setIsTransferring] = useState(false);
 
     const fetchInventory = async () => {
         setLoading(true);
@@ -75,6 +80,20 @@ export const InventoryView = () => {
             if (res.ok) fetchInventory();
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const handleTransferSubmit = async () => {
+        if (!transferItem || transferQty <= 0) return;
+        setIsTransferring(true);
+        try {
+            await ApiClient.transferInventory(transferItem.id, transferQty, transferDir, 'Manual Terminal Transfer');
+            setTransferItem(null);
+            fetchInventory();
+        } catch (err) {
+            console.error('Transfer failed', err);
+        } finally {
+            setIsTransferring(false);
         }
     };
 
@@ -194,16 +213,29 @@ export const InventoryView = () => {
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => {
+                                                        setTransferItem(item);
+                                                        setTransferQty(1);
+                                                        setTransferDir('EXIT');
+                                                    }}
+                                                    className="p-2 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-lg text-gray-500 transition-colors"
+                                                    title="Transfer Stock"
+                                                >
+                                                    <ArrowRightLeft size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
                                                         setEditingItem(item);
                                                         setIsBuilderOpen(true);
                                                     }}
                                                     className="p-2 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg text-gray-500 transition-colors"
+                                                    title="Edit Item"
                                                 >
                                                     <Edit2 size={14} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteItem(item.id)}
                                                     className="p-2 hover:bg-red-500/20 hover:text-red-400 rounded-lg text-gray-500 transition-colors"
+                                                    title="Delete"
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>
@@ -223,6 +255,78 @@ export const InventoryView = () => {
                     onSave={handleSaveItem}
                     onClose={() => setIsBuilderOpen(false)}
                 />
+            )}
+
+            {/* Transfer Modal */}
+            {transferItem && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-neutral-900 border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+                            <h3 className="font-bold text-white flex items-center gap-2">
+                                <ArrowRightLeft className="text-emerald-400" size={18} /> Internal Transfer
+                            </h3>
+                        </div>
+                        <div className="p-6 space-y-6 bg-black/20">
+                            <div>
+                                <label className="block text-xs font-mono text-gray-500 mb-2 uppercase">Route</label>
+                                <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                                    <button
+                                        onClick={() => setTransferDir('EXIT')}
+                                        className={`flex-1 py-3 text-xs font-bold font-mono transition-colors rounded-lg flex items-center justify-center gap-2 ${transferDir === 'EXIT' ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)]' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        BOH <ArrowRightLeft size={12} /> STAND
+                                    </button>
+                                    <button
+                                        onClick={() => setTransferDir('INGRESS')}
+                                        className={`flex-1 py-3 text-xs font-bold font-mono transition-colors rounded-lg flex items-center justify-center gap-2 ${transferDir === 'INGRESS' ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)]' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        STAND <ArrowRightLeft size={12} /> BOH
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-mono text-gray-500 mb-2 uppercase">Item Definition</label>
+                                <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between">
+                                    <span className="font-bold text-gray-200">{transferItem.name}</span>
+                                    <span className="text-xs bg-black/50 px-2 py-1 rounded text-gray-400 font-mono">
+                                        {transferDir === 'EXIT' ? transferItem.stockKitchen : transferItem.stockStand} {transferItem.stockUnit} AVAIL
+                                    </span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-mono text-gray-500 mb-2 uppercase">Transfer Quantity</label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="0.1"
+                                        step="0.1"
+                                        value={transferQty}
+                                        onChange={(e) => setTransferQty(parseFloat(e.target.value) || 0)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-mono focus:border-brand outline-none"
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">
+                                        {transferItem.stockUnit}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-white/10 bg-black/40 flex justify-end gap-3">
+                            <button
+                                onClick={() => setTransferItem(null)}
+                                className="px-6 py-2.5 rounded-xl text-gray-400 font-bold text-sm hover:text-white transition-colors"
+                            >
+                                CANCEL
+                            </button>
+                            <button
+                                onClick={handleTransferSubmit}
+                                disabled={isTransferring || transferQty <= 0 || (transferDir === 'EXIT' ? (transferItem.stockKitchen || 0) < transferQty : (transferItem.stockStand || 0) < transferQty)}
+                                className="px-8 py-2.5 bg-brand text-black font-black text-sm rounded-xl tracking-wide hover:bg-brand/90 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(132,204,22,0.2)] disabled:opacity-50 disabled:shadow-none min-w-[160px]"
+                            >
+                                {isTransferring ? 'ROUTING...' : 'AUTHORIZE'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

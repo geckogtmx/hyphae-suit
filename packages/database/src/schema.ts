@@ -238,6 +238,25 @@ export const suppliersRelations = relations(suppliers, ({ many }) => ({
   inventoryItems: many(inventoryItems),
 }));
 
+export const supplyOrdersRelations = relations(supplyOrders, ({ one, many }) => ({
+  supplier: one(suppliers, {
+    fields: [supplyOrders.supplierId],
+    references: [suppliers.id],
+  }),
+  items: many(supplyOrderItems),
+}));
+
+export const supplyOrderItemsRelations = relations(supplyOrderItems, ({ one }) => ({
+  order: one(supplyOrders, {
+    fields: [supplyOrderItems.supplyOrderId],
+    references: [supplyOrders.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [supplyOrderItems.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+}));
+
 export const inventoryItemsRelations = relations(inventoryItems, ({ one, many }) => ({
   supplier: one(suppliers, {
     fields: [inventoryItems.preferredSupplierId],

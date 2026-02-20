@@ -9,12 +9,14 @@
 
 - **Architecture**: pnpm workspace monorepo
   - **Apps**:
-    - `apps/pos`: Point of Sale (React 19, Vite, Tailwind, Drizzle, LibSQL).
-    - `apps/core`: Back of House / Control Center (React, Vite, Tailwind).
-    - `apps/boh`: Kitchen Prep & Display System (React, Vite, Tailwind, Zustand).
+    - `apps/core`: Control Center & Master Node (Hub/Forecasting).
+    - `apps/boh`: Kitchen Prep & Receiving (Tablet).
+    - `apps/pos`: Point of Sale (True Offline-First SQLite Replica).
+    - `apps/market`: Market Companion (BOH Mobile Shopping).
+    - `apps/patron`: Customer Facing (Loyalty/Ordering).
   - **Packages**:
     - `@hyphae/schemas`: Shared type definitions (Zod/TypeScript).
-    - `@hyphae/ui`: (Planned) Shared UI component library.
+    - `@hyphae/ui`: Shared UI component library (POS-Homologated).
 
 ## 2. Operational Protocol
 
@@ -38,22 +40,24 @@ The following rules are enforced across the entire monorepo:
 
 ## 4. Project Status & Roadmap
 
-### 🟢 apps/pos (Hyphae POS)
-- **Status**: Phase 3 - Backend Integration Complete
-- **Key Features**: Offline-first, Checkout API, Inventory Sync, Loyalty Backend.
+> **Current Directive**: The project has officially pivoted to the **V2 Architecture Blueprint** (defined in `DEVELOPMENT_PLAN_V2.md`). All efforts are sequence-locked to the golden pipeline rules. 
+> **Current Active Phase**: Phase 2 - Localizing the BOH (`apps/boh`).
 
-### 🟡 apps/core (Hyphae Core)
-- **Status**: Phase 1.5 - Enhanced Dashboard
-- **Key Features**: Product Builder, AI Hub, Loyalty/Financial Analytics.
-- **Recent Work**: Integrated `ProductBuilder`, aligned with shared schemas.
+### 🟢 Phase 1: Perfecting the Core Foundation (COMPLETED)
+- **Goal**: Finalize `apps/core` to act as the single source of truth.
 
-### 🟣 apps/boh (Kitchen Prep)
-- **Status**: Phase 1 - Foundation
-- **Key Features**: Kitchen Display System (KDS), Prep Lists, Recipe/Training View.
+### 🟡 Phase 2: Localizing the BOH (ACTIVE)
+- **Goal**: Empower the prep kitchen to operate offline using synced data from CORE. Focus on goods reception and batch prep.
+- **Immediate Work**: Supplier Reception, Batch Prep UI, Cart Exchange (Load/Return).
 
-### 🔵 packages/schemas (Shared)
-- **Status**: Active
-- **Content**: Domain entities (`Product`, `Order`, `Inventory`).
+### 🟢 Phase 3: Localizing the POS (Upcoming)
+- **Goal**: Rip out the generic `idb` API queue and replace it with a true offline SQLite/RxDB local replica sync engine.
+
+### 🌪️ Phase 4 & 5: AI Tools & Mobile Expansion (Future)
+- **Goal**: Deploy the Market App, the Patron App, OCR Parsing, and Predictive Forecasting.
+
+### 🎨 Phase 6: UI Homologation (Future)
+- **Goal**: Extract the styling from `apps/pos` into `@hyphae/ui` and apply the exact look-and-feel globally to all other nodes. 
 
 ## 5. Technical SOPs
 
@@ -64,6 +68,7 @@ The following rules are enforced across the entire monorepo:
 
 ## 6. Maintenance Log
 
+- **2026-02-20**: **Phase 1 Completion (Core Foundation)**. Finalized the Recipe Architect and Forecast Engine. Organized explicitly tracked internal database exchanges (Load/Return Cart). Activated Phase 2 (Localizing the BOH).
 - **2026-02-19**: **Archival & Recovery (Soft-Delete)**. Implemented full "Recycle Bin" lifecycle for menu items.
     - **Database**: Added `deletedAt` column to `products` table for non-destructive removals.
     - **API**: Added `GET /products/trash`, `POST /restore`, and `/permanent` delete endpoints. Fixed a critical route registration bug (missing brace) that inhibited deletion logic.

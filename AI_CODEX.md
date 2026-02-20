@@ -1,8 +1,8 @@
 # @AI_CODEX.md - The Constitution & Stack
 
 **Project**: Hyphae Suit Monorepo  
-**Version**: 1.0  
-**Last Updated**: 2026-02-16  
+**Version**: 2.0 (V2 Architecture)  
+**Last Updated**: 2026-02-20  
 
 > ⚠️ **IMPERATIVE**: This document is the supreme law of the codebase. All AI agents must read and internalize its contents at the start of every session.
 
@@ -28,10 +28,12 @@
 
 ## 3. Directory Structure
 
--   `apps/pos`: Point of Sale (Tablet, Offline-First)
--   `apps/core`: Control Center (Desktop, Admin)
--   `apps/boh`: Kitchen Display System (Tablet, Realtime)
--   `apps/api`: Backend API & WebSocket Server
+-   `apps/core`: Control Center & Master Node (Desktop/Cloud)
+-   `apps/boh`: Kitchen Engine & Receiving (Tablet, Realtime)
+-   `apps/pos`: Point of Sale (Tablet, Offline-First SQLite Replica)
+-   `apps/market`: Market Companion (BOH Mobile, offline shopping list)
+-   `apps/patron`: Customer Facing (Loyalty, Mobile Orders)
+-   `apps/api`: Backend API & Sync Engine WebSocket Server
 -   `packages/schemas`: Shared Zod definitions
 -   `packages/database`: Drizzle ORM schema & client
 -   `packages/ui`: Shared component library (Planned)

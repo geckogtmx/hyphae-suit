@@ -3,6 +3,7 @@ import { seedClientDatabase } from './lib/clientSeed';
 import { SuppliersView } from './views/SuppliersView';
 import { InventoryView } from './views/InventoryView';
 import { RecipesView } from './views/RecipesView';
+import { ForecastView } from './views/ForecastView';
 
 import {
    LayoutDashboard,
@@ -116,6 +117,7 @@ const NavigationHeader = ({
       { id: 'kitchen', icon: ChefHat, label: 'Recipes' }, // New
       { id: 'inventory', icon: Package, label: 'Stock' },
       { id: 'suppliers', icon: Truck, label: 'Supply Chain' }, // New
+      { id: 'forecast', icon: TrendingUp, label: 'Forecast Engine' },
       { id: 'devices', icon: Server, label: 'Fleet' },
    ];
 
@@ -856,6 +858,8 @@ const App = () => {
                )}
                {activeView === 'inventory' && <InventoryView />}
                {activeView === 'kitchen' && <RecipesView />}
+               {activeView === 'suppliers' && <SuppliersView />}
+               {activeView === 'forecast' && <ForecastView />}
                {activeView === 'devices' && <DevicesView devices={devices} />}
             </main>
          </div>
