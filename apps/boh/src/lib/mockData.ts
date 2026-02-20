@@ -4,6 +4,7 @@ export const mockRecipes: RecipeDefinition[] = [
     {
         id: 'brioche_batch_20',
         name: 'Brioche Buns (20ct)',
+        type: 'BATCH',
         category: 'bread',
         yieldQuantity: 20,
         yieldUnit: 'count',
@@ -28,6 +29,7 @@ export const mockRecipes: RecipeDefinition[] = [
     {
         id: 'salsa_roja_5l',
         name: 'Salsa Roja (5L)',
+        type: 'BATCH',
         category: 'sauce',
         yieldQuantity: 5,
         yieldUnit: 'qt', // Using qt to match POS units if needed, but lets stick to logic
@@ -49,11 +51,11 @@ export const mockRecipes: RecipeDefinition[] = [
 ];
 
 export const mockInventory: InventoryItem[] = [
-    { id: 'flour_ap', name: 'AP Flour', type: 'RAW', stockUnit: 'kg', costPerUnit: 1.5, currentStock: 25 },
-    { id: 'yeast', name: 'Instant Yeast', type: 'RAW', stockUnit: 'g', costPerUnit: 0.05, currentStock: 450 },
-    { id: 'butter', name: 'Unsalted Butter', type: 'RAW', stockUnit: 'kg', costPerUnit: 12, currentStock: 5 },
-    { id: 'tomatillos', name: 'Tomatillos', type: 'RAW', stockUnit: 'kg', costPerUnit: 3, currentStock: 10 },
-    { id: 'chiles_arbol', name: 'Chiles de Arbol', type: 'RAW', stockUnit: 'g', costPerUnit: 0.02, currentStock: 500 },
+    { id: 'flour_ap', name: 'AP Flour', type: 'RAW', stockUnit: 'kg', costPerUnit: 1.5, stockKitchen: 25 },
+    { id: 'yeast', name: 'Instant Yeast', type: 'RAW', stockUnit: 'g', costPerUnit: 0.05, stockKitchen: 450 },
+    { id: 'butter', name: 'Unsalted Butter', type: 'RAW', stockUnit: 'kg', costPerUnit: 12, stockKitchen: 5 },
+    { id: 'tomatillos', name: 'Tomatillos', type: 'RAW', stockUnit: 'kg', costPerUnit: 3, stockKitchen: 10 },
+    { id: 'chiles_arbol', name: 'Chiles de Arbol', type: 'RAW', stockUnit: 'g', costPerUnit: 0.02, stockKitchen: 500 },
 ];
 
 export const mockSchedule: PrepSchedule = {

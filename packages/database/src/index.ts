@@ -75,4 +75,4 @@ export const db = drizzle(client, { schema });
 export { schema };
 export * from './schema.js';
 export * from './mock_data.js';
-export { eq, desc, asc, and, or, sql } from 'drizzle-orm';
+export { eq, desc, asc, and, or, sql, isNull, isNotNull } from 'drizzle-orm';

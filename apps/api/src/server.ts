@@ -9,7 +9,7 @@ import { z } from 'zod'; // Keep zod for internal validation if needed
 import { AnalyzePayloadSchema, CheckoutPayloadSchema } from '@hyphae/schemas';
 import { socketService } from './services/SocketService';
 import { InventoryService } from './services/InventoryService';
-import { db, schema, desc, eq, sql } from '@hyphae/database';
+import { db, schema, desc, eq, sql, isNull, isNotNull, and } from '@hyphae/database';
 
 // Load env from current dir OR root fallback (for monorepo convenience)
 dotenv.config();
@@ -183,39 +183,7 @@ server.get('/api/categories', async (request, reply) => {
     }
 });
 
-server.get('/api/products', async (request, reply) => {
-    try {
-        const rawProducts = await db.query.products.findMany({
-            with: {
-                category: true,
-                modifierGroups: {
-                    with: {
-                        group: {
-                            with: {
-                                options: true
-                            }
-                        }
-                    }
-                }
-            }
-        });
 
-        // Transform Drizzle relation (junction) to flat structure
-        const products = rawProducts.map(p => ({
-            ...p,
-            modifierGroups: p.modifierGroups.map((pm: any) => ({
-                ...pm.group,
-                options: pm.group.options, // Ensure options are carried over
-                sortOrder: pm.sortOrder // Optional: keep sort order if needed
-            }))
-        }));
-
-        return products;
-    } catch (e) {
-        console.error(e);
-        reply.code(500).send({ error: "Failed to fetch products" });
-    }
-});
 
 // LOGIN ROUTE
 server.post('/api/auth/login', async (request, reply) => {
@@ -809,17 +777,506 @@ server.post('/api/kitchen-queue/:id/complete', async (request, reply) => {
     return reply.code(404).send({ error: 'Ticket not found' });
 });
 
-// Start server
+// --- RECIPE ROUTES (BOH Support) ---
+
+server.get('/api/recipes', async (request, reply) => {
+    try {
+        const results = await db.query.recipes.findMany({
+            with: {
+                ingredients: true,
+                steps: true
+            }
+        });
+
+        // Map to shared schema format (equipment etc)
+        const mapped = results.map(r => ({
+            ...r,
+            equipment: r.equipment ? r.equipment.split(',') : [],
+            components: r.ingredients, // Rename for schema compatibility
+            steps: r.steps.sort((a, b) => a.stepNumber - b.stepNumber)
+        }));
+
+        return mapped;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch recipes' });
+    }
+});
+
+server.get('/api/recipes/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        const recipe = await db.query.recipes.findFirst({
+            where: eq(schema.recipes.id, id),
+            with: {
+                ingredients: true,
+                steps: true
+            }
+        });
+
+        if (!recipe) {
+            return reply.code(404).send({ error: 'Recipe not found' });
+        }
+
+        return {
+            ...recipe,
+            equipment: recipe.equipment ? recipe.equipment.split(',') : [],
+            components: recipe.ingredients, // Rename for schema compatibility
+            steps: recipe.steps.sort((a, b) => a.stepNumber - b.stepNumber)
+        };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch recipe detail' });
+    }
+});
+
+server.post('/api/recipes', async (request, reply) => {
+    const body = request.body as any; // Todo: Add Zod validation
+    try {
+        const id = body.id || `rec_${Date.now()}`;
+
+        await db.transaction(async (tx) => {
+            await tx.insert(schema.recipes).values({
+                id,
+                name: body.name,
+                type: body.type,
+                category: body.category,
+                yieldQuantity: body.yieldQuantity,
+                yieldUnit: body.yieldUnit,
+                activeTimeMinutes: body.activeTimeMinutes,
+                totalTimeMinutes: body.totalTimeMinutes,
+                outputInventoryItemId: body.outputInventoryItemId,
+                storageInstructions: body.storageInstructions,
+                shelfLifeDays: body.shelfLifeDays,
+                equipment: body.equipment ? body.equipment.join(',') : '',
+            });
+
+            if (body.components && body.components.length > 0) {
+                await tx.insert(schema.recipeIngredients).values(
+                    body.components.map((c: any) => ({
+                        id: `ing_${id}_${Math.random().toString(36).substring(7)}`,
+                        recipeId: id,
+                        inventoryItemId: c.inventoryItemId,
+                        quantity: c.quantity,
+                        unit: c.unit,
+                    }))
+                );
+            }
+
+            if (body.steps && body.steps.length > 0) {
+                await tx.insert(schema.recipeSteps).values(
+                    body.steps.map((s: any, idx: number) => ({
+                        id: `step_${id}_${idx}`,
+                        recipeId: id,
+                        stepNumber: s.stepNumber || idx + 1,
+                        instruction: s.instruction,
+                        type: s.type || 'active',
+                        durationMinutes: s.durationMinutes,
+                        isCheckpoint: s.isCheckpoint || false,
+                    }))
+                );
+            }
+        });
+
+        return { success: true, id };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to create recipe' });
+    }
+});
+
+server.put('/api/recipes/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    try {
+        await db.transaction(async (tx) => {
+            await tx.update(schema.recipes)
+                .set({
+                    name: body.name,
+                    type: body.type,
+                    category: body.category,
+                    yieldQuantity: body.yieldQuantity,
+                    yieldUnit: body.yieldUnit,
+                    activeTimeMinutes: body.activeTimeMinutes,
+                    totalTimeMinutes: body.totalTimeMinutes,
+                    outputInventoryItemId: body.outputInventoryItemId,
+                    storageInstructions: body.storageInstructions,
+                    shelfLifeDays: body.shelfLifeDays,
+                    equipment: body.equipment ? body.equipment.join(',') : '',
+                })
+                .where(eq(schema.recipes.id, id));
+
+            // Replace ingredients
+            await tx.delete(schema.recipeIngredients).where(eq(schema.recipeIngredients.recipeId, id));
+            if (body.components && body.components.length > 0) {
+                await tx.insert(schema.recipeIngredients).values(
+                    body.components.map((c: any) => ({
+                        id: `ing_${id}_${Math.random().toString(36).substring(7)}`,
+                        recipeId: id,
+                        inventoryItemId: c.inventoryItemId,
+                        quantity: c.quantity,
+                        unit: c.unit,
+                    }))
+                );
+            }
+
+            // Replace steps
+            await tx.delete(schema.recipeSteps).where(eq(schema.recipeSteps.recipeId, id));
+            if (body.steps && body.steps.length > 0) {
+                await tx.insert(schema.recipeSteps).values(
+                    body.steps.map((s: any, idx: number) => ({
+                        id: `step_${id}_${idx}`,
+                        recipeId: id,
+                        stepNumber: s.stepNumber || idx + 1,
+                        instruction: s.instruction,
+                        type: s.type || 'active',
+                        durationMinutes: s.durationMinutes,
+                        isCheckpoint: s.isCheckpoint || false,
+                    }))
+                );
+            }
+        });
+
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update recipe' });
+    }
+});
+
+server.delete('/api/recipes/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.transaction(async (tx) => {
+            await tx.delete(schema.recipeIngredients).where(eq(schema.recipeIngredients.recipeId, id));
+            await tx.delete(schema.recipeSteps).where(eq(schema.recipeSteps.recipeId, id));
+            await tx.delete(schema.recipes).where(eq(schema.recipes.id, id));
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to delete recipe' });
+    }
+});
+
+server.get('/api/inventory', async (request, reply) => {
+    try {
+        const inventory = await db.select().from(schema.inventoryItems);
+        return inventory;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch inventory' });
+    }
+});
+
+server.post('/api/inventory/item', async (request, reply) => {
+    const item = request.body as any; // Todo: Zod
+    try {
+        const id = item.id || `inv_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        await db.insert(schema.inventoryItems).values({
+            id,
+            name: item.name,
+            type: item.type || 'RAW',
+            stockUnit: item.stockUnit || 'count',
+            costPerUnit: item.costPerUnit || 0,
+            stockKitchen: item.stockKitchen || 0,
+            stockStand: item.stockStand || 0,
+            preferredSupplierId: item.preferredSupplierId || null
+        });
+        return { success: true, id };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to create inventory item' });
+    }
+});
+
+server.put('/api/inventory/item/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const item = request.body as any;
+    try {
+        await db.update(schema.inventoryItems)
+            .set({
+                name: item.name,
+                type: item.type,
+                stockUnit: item.stockUnit,
+                costPerUnit: item.costPerUnit,
+                preferredSupplierId: item.preferredSupplierId
+            })
+            .where(eq(schema.inventoryItems.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update inventory item' });
+    }
+});
+
+server.delete('/api/inventory/item/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.delete(schema.inventoryItems).where(eq(schema.inventoryItems.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to delete inventory item' });
+    }
+});
+
+server.post('/api/inventory/produce', async (request, reply) => {
+    const { recipeId, quantity } = request.body as { recipeId: string; quantity: number };
+    try {
+        if (!recipeId || !quantity) {
+            return reply.code(400).send({ error: 'Missing recipeId or quantity' });
+        }
+        const result = await InventoryService.produceBatch(recipeId, quantity);
+        return result;
+    } catch (e: any) {
+        request.log.error(e);
+        reply.code(500).send({ error: e.message || 'Production failed' });
+    }
+});
+
+server.post('/api/inventory/receive', async (request, reply) => {
+    const { itemId, quantity, cost, supplierId } = request.body as { itemId: string; quantity: number; cost: number; supplierId?: string };
+    try {
+        if (!itemId || !quantity || cost === undefined) {
+            return reply.code(400).send({ error: 'Missing itemId, quantity, or cost' });
+        }
+        const result = await InventoryService.receiveInventory(itemId, quantity, cost, supplierId);
+        return result;
+    } catch (e: any) {
+        request.log.error(e);
+        reply.code(500).send({ error: e.message || 'Receiving failed' });
+    }
+});
+
+server.post('/api/inventory/transfer', async (request, reply) => {
+    const { itemId, quantity, direction, note } = request.body as { itemId: string; quantity: number; direction: 'EXIT' | 'INGRESS'; note?: string };
+    try {
+        if (!itemId || !quantity || !direction) {
+            return reply.code(400).send({ error: 'Missing itemId, quantity, or direction' });
+        }
+        const result = await InventoryService.transferInventory(itemId, quantity, direction, note);
+        return result;
+    } catch (e: any) {
+        request.log.error(e);
+        reply.code(500).send({ error: e.message || 'Transfer failed' });
+    }
+});
+
+// --- PRODUCT ROUTES ---
+
+server.get('/api/products', async (request, reply) => {
+    try {
+        const rawProducts = await db.query.products.findMany({
+            where: isNull(schema.products.deletedAt),
+            with: {
+                modifierGroups: {
+                    with: {
+                        group: {
+                            with: {
+                                options: true
+                            }
+                        }
+                    },
+                    orderBy: (productModifiers, { asc }) => [asc(productModifiers.sortOrder)]
+                },
+                recipe: true // Include recipe to verify link
+            }
+        });
+
+        // Map to Frontend Interface
+        const mappedProducts = rawProducts.map(p => ({
+            ...p,
+            isActive: p.isActive,
+            requiresMods: p.requiresMods,
+            modifierGroups: p.modifierGroups.map(pm => ({
+                ...pm.group,
+                required: pm.group.required,
+                multiSelect: pm.group.multiSelect,
+                options: pm.group.options.map(opt => ({
+                    ...opt,
+                    inventoryMetadata: {
+                        recipeId: opt.recipeId || undefined,
+                        directDepletion: opt.inventoryItemId ? [{ inventoryItemId: opt.inventoryItemId, quantity: 1, unit: 'count' }] : undefined // Simple map
+                    }
+                }))
+            })),
+            inventoryMetadata: {
+                recipeId: p.recipeId || undefined,
+                directDepletion: p.inventoryItemId ? [{ inventoryItemId: p.inventoryItemId, quantity: 1, unit: 'count' }] : undefined
+            }
+        }));
+
+        return mappedProducts;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch products' });
+    }
+});
+
+server.put('/api/products', async (request, reply) => {
+    const productsList = request.body as any[]; // Todo: Zod Array
+
+    try {
+        await db.transaction(async (tx) => {
+            // 1. Upsert Products
+            for (const p of productsList) {
+                // Extract Inventory Metadata
+                const recipeId = p.inventoryMetadata?.recipeId || null;
+                const inventoryItemId = p.inventoryMetadata?.directDepletion?.[0]?.inventoryItemId || null;
+
+                await tx.insert(schema.products).values({
+                    id: p.id,
+                    name: p.name,
+                    categoryId: p.categoryId,
+                    price: p.price,
+                    requiresMods: p.requiresMods || false,
+                    isActive: p.isActive !== false,
+                    kitchenLabel: p.metadata?.kitchenLabel || p.name,
+                    packagingSku: p.packaging?.sku,
+                    recipeId: recipeId,
+                    inventoryItemId: inventoryItemId
+                }).onConflictDoUpdate({
+                    target: schema.products.id,
+                    set: {
+                        name: p.name,
+                        categoryId: p.categoryId,
+                        price: p.price,
+                        requiresMods: p.requiresMods || false,
+                        isActive: p.isActive !== false,
+                        kitchenLabel: p.metadata?.kitchenLabel || p.name,
+                        packagingSku: p.packaging?.sku,
+                        recipeId: recipeId,
+                        inventoryItemId: inventoryItemId
+                    }
+                });
+
+                // 2. Handle Modifiers (Complex: Re-create links)
+                // First, unlink all existing groups for this product
+                await tx.delete(schema.productModifiers).where(eq(schema.productModifiers.productId, p.id));
+
+                if (p.modifierGroups && p.modifierGroups.length > 0) {
+                    for (let i = 0; i < p.modifierGroups.length; i++) {
+                        const group = p.modifierGroups[i];
+
+                        // Upsert Group (Assuming groups might be shared or reused? For now treat as unique per product mostly)
+                        await tx.insert(schema.modifierGroups).values({
+                            id: group.id,
+                            name: group.name,
+                            required: group.required || false,
+                            multiSelect: group.multiSelect || false
+                        }).onConflictDoUpdate({
+                            target: schema.modifierGroups.id,
+                            set: {
+                                name: group.name,
+                                required: group.required || false,
+                                multiSelect: group.multiSelect || false
+                            }
+                        });
+
+                        // Link Group to Product
+                        await tx.insert(schema.productModifiers).values({
+                            id: `pm_${p.id}_${group.id}`, // Deterministic ID
+                            productId: p.id,
+                            modifierGroupId: group.id,
+                            sortOrder: i
+                        }).onConflictDoNothing();
+
+                        // Handle Options for Group
+                        await tx.delete(schema.modifierOptions).where(eq(schema.modifierOptions.groupId, group.id));
+
+                        if (group.options && group.options.length > 0) {
+                            await tx.insert(schema.modifierOptions).values(
+                                group.options.map((opt: any) => ({
+                                    id: opt.id,
+                                    groupId: group.id,
+                                    name: opt.name,
+                                    price: opt.price || 0,
+                                    kitchenLabel: opt.metadata?.kitchenLabel,
+                                    recipeId: opt.inventoryMetadata?.recipeId || null,
+                                    inventoryItemId: opt.inventoryMetadata?.directDepletion?.[0]?.inventoryItemId || null
+                                }))
+                            );
+                        }
+                    }
+                }
+            }
+        });
+
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update products' });
+    }
+});
+
+server.get('/api/products/trash', async (request, reply) => {
+    try {
+        const rawProducts = await db.query.products.findMany({
+            where: isNotNull(schema.products.deletedAt),
+            with: {
+                modifierGroups: {
+                    with: { group: { with: { options: true } } }
+                }
+            }
+        });
+        return rawProducts;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch trash' });
+    }
+});
+
+server.delete('/api/products/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.update(schema.products)
+            .set({ deletedAt: Date.now() })
+            .where(eq(schema.products.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to soft delete product' });
+    }
+});
+
+server.post('/api/products/:id/restore', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.update(schema.products)
+            .set({ deletedAt: null })
+            .where(eq(schema.products.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to restore product' });
+    }
+});
+
+server.delete('/api/products/:id/permanent', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.transaction(async (tx) => {
+            // Unlink all modifier groups from this product
+            await tx.delete(schema.productModifiers).where(eq(schema.productModifiers.productId, id));
+            // Delete product
+            await tx.delete(schema.products).where(eq(schema.products.id, id));
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to permanently delete product' });
+    }
+});
+
+// START
 const start = async () => {
     try {
-        const PORT = parseInt(process.env.PORT || '3001');
-
+        const port = Number(process.env.PORT) || 3001;
         await server.ready();
         socketService.initialize(server.server);
-
-        // Bind to 127.0.0.1 explicitly to match client requests and avoid IPv6 confusion
-        await server.listen({ port: PORT, host: '127.0.0.1' });
-        console.log(`Server listening on port ${PORT}`);
+        await server.listen({ port, host: '0.0.0.0' });
+        console.log(`🚀 Hyphae API flowing at http://localhost:${port}`);
     } catch (err) {
         server.log.error(err);
         process.exit(1);

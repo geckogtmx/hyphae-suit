@@ -1,7 +1,7 @@
 # GEMINI.md - Project Map & Source of Truth
 
 **Project**: Hyphae Suit Monorepo
-**Last Updated**: 2026-02-19
+**Last Updated**: 2026-02-19 (Late Session)
 
 ## 1. Project Overview
 
@@ -63,6 +63,16 @@ The following rules are enforced across the entire monorepo:
 - [x] SOP-004: Monorepo Shared Types Migration
 
 ## 6. Maintenance Log
+
+- **2026-02-19**: **Archival & Recovery (Soft-Delete)**. Implemented full "Recycle Bin" lifecycle for menu items.
+    - **Database**: Added `deletedAt` column to `products` table for non-destructive removals.
+    - **API**: Added `GET /products/trash`, `POST /restore`, and `/permanent` delete endpoints. Fixed a critical route registration bug (missing brace) that inhibited deletion logic.
+    - **Core**: Implemented "Recycle Bin" toggle with glow-state indicator. Hardened `ProductBuilder` with selection persistence and decimal price validation. Verified state sync between Active/Trash views.
+- **2026-02-19**: **Data Unification & Supply Chain Integrity**. Verified and enforced the `Supplier > Stock > Recipe > Product > Sale` pipeline.
+    - **API**: Resolved duplicate route definitions causing server instability.
+    - **BOH**: Migrated `InventoryDashboard` from mock data to live API consumption (`/api/inventory`).
+    - **POS**: Updated `MenuRepository` to correctly map `inventoryMetadata` (Recipe/Direct Stock links) from the database schema, ensuring accurate depletion during checkout.
+    - **Core**: Validated `ProductBuilder` integration with live Inventory/Recipe data.
 
 - **2026-02-19**: **Production Hardening & Stabilization**. Hardened the API with environment-driven CORS, log redaction for sensitive fields (PINs), and optimized rate limiting. Enforced strict API key authentication for non-public routes. Improved database reliability by wrapping inventory depletion logic in atomic transactions. Resolved high-volume lint errors in the POS application, including React state-in-effect warnings and deprecated triple-slash references. Verified full Loyalty->Order->Pay loop with database persistence for card `BEE101`.
 - **2026-02-19**: Fixed Loyalty Registration "Error Persists" loop. Identified and resolved a critical database schema mismatch (missing `is_physical_card` column). Enforced the **Inverted Abyssal Theme** scale across all loyalty components, ensuring dark backgrounds and high contrast. Fixed the POS "Start Order" button by implementing a `cardNumber` fallback for the legacy `activeCard` structure. Standardized loyalty API queries to prevent camelCase/snake_case mismatches.

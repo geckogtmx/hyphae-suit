@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Button, Badge } from '../ui/base';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import type { DecayStatus } from './visual-decay';
@@ -6,8 +6,12 @@ import { VisualDecayIcon } from './visual-decay';
 import { Plus, Printer, XCircle, Recycle } from 'lucide-react';
 
 export function InventoryDashboard() {
-    const { inventory } = useInventoryStore();
+    const { inventory, fetchInventory } = useInventoryStore();
     const [filter, setFilter] = useState<'ALL' | 'RAW' | 'PREP'>('ALL');
+
+    useEffect(() => {
+        fetchInventory();
+    }, [fetchInventory]);
 
     const filteredItems = inventory.filter((i: any) => filter === 'ALL' || i.type === filter);
 
@@ -21,7 +25,12 @@ export function InventoryDashboard() {
     return (
         <div className="p-4 h-full flex flex-col gap-6">
             <header className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold text-white">Inventory & Par Levels</h2>
+                <div className="flex items-center gap-4">
+                    <h2 className="text-3xl font-bold text-white">Inventory & Par Levels</h2>
+                    <Badge variant={inventory.length > 0 && inventory[0].id !== 'flour_ap' ? 'success' : 'default'} className="animate-pulse">
+                        {inventory.length > 0 && inventory[0].id !== 'flour_ap' ? 'LIVE CONNECTION' : 'MOCK MODE'}
+                    </Badge>
+                </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => setFilter('ALL')} className={filter === 'ALL' ? 'bg-jet-700' : ''}>All</Button>
                     <Button variant="outline" onClick={() => setFilter('RAW')} className={filter === 'RAW' ? 'bg-jet-700' : ''}>Raw Goods</Button>
@@ -29,10 +38,10 @@ export function InventoryDashboard() {
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-20">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 overflow-y-auto pb-20 pr-2">
                 {filteredItems.map((item: any) => {
                     const decay = getMockStatus(item.id);
-                    const isLowStock = item.currentStock < (item.parLevel || 500); // Mock par check
+                    const isLowStock = (item.stockKitchen || 0) < (item.parLevel || 500); // Mock par check
 
                     return (
                         <Card key={item.id} className="bg-jet-700 border-jet-500 relative overflow-hidden group">
@@ -48,7 +57,7 @@ export function InventoryDashboard() {
                                 <div>
                                     <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">In Stock</div>
                                     <div className={`text-4xl font-black ${isLowStock ? 'text-red-500' : 'text-teal-bright'}`}>
-                                        {item.currentStock}
+                                        {item.stockKitchen || 0}
                                     </div>
                                 </div>
 

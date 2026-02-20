@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge } from './ui/base';
 import {
     Book,
@@ -10,20 +10,43 @@ import {
     ListChecks,
     Monitor
 } from 'lucide-react';
-import { mockRecipes } from '../lib/mockData';
+import type { RecipeDefinition } from '../types';
 import { usePrepStore } from '../stores/prepStore';
 
 export function RecipesList() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+    const [recipes, setRecipes] = useState<RecipeDefinition[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const addTaskFromRecipe = usePrepStore(state => state.addTaskFromRecipe);
 
-    const filteredRecipes = mockRecipes.filter(r =>
+    useEffect(() => {
+        const fetchRecipes = async () => {
+            try {
+                const res = await fetch('http://127.0.0.1:3001/api/recipes', {
+                    headers: {
+                        'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
+                    }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setRecipes(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch recipes', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchRecipes();
+    }, []);
+
+    const filteredRecipes = recipes.filter(r =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const activeRecipe = mockRecipes.find(r => r.id === selectedRecipeId);
+    const activeRecipe = recipes.find(r => r.id === selectedRecipeId);
 
     return (
         <div className="h-full flex flex-col gap-6 animate-in fade-in duration-500 p-4">

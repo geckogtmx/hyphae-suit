@@ -11,10 +11,31 @@ import {
     CheckCircle2,
     Play
 } from 'lucide-react';
-import { mockRecipes } from '../lib/mockData';
+import type { RecipeDefinition, InventoryItem } from '../types';
 
 export function PrepDashboard() {
     const { activeSchedule, activeTasks, passiveTasks, loadSchedule, selectTask } = usePrepStore();
+    const [recipes, setRecipes] = React.useState<RecipeDefinition[]>([]);
+    const [inventory, setInventory] = React.useState<InventoryItem[]>([]);
+
+    React.useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const headers = {
+                    'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
+                };
+                const [recRes, invRes] = await Promise.all([
+                    fetch('http://127.0.0.1:3001/api/recipes', { headers }),
+                    fetch('http://127.0.0.1:3001/api/inventory', { headers })
+                ]);
+                if (recRes.ok) setRecipes(await recRes.json());
+                if (invRes.ok) setInventory(await invRes.json());
+            } catch (err) {
+                console.error('Failed to fetch prep dashboard data', err);
+            }
+        };
+        fetchData();
+    }, []);
 
     const handleStartShift = () => {
         loadSchedule();
@@ -38,11 +59,14 @@ export function PrepDashboard() {
         );
     }
 
-    const allTasks = [...activeTasks, ...passiveTasks, ...(activeSchedule.tasks.filter(t => t.status === 'pending'))];
     const completedTasks = activeSchedule.tasks.filter(t => t.status === 'completed');
     const progress = activeSchedule.tasks.length > 0
         ? Math.round((completedTasks.length / activeSchedule.tasks.length) * 100)
         : 0;
+
+    const criticalInventory = inventory
+        .filter(item => (item.stockKitchen || 0) < 5) // Simple threshold for demo
+        .slice(0, 3);
 
     return (
         <div className="h-full flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-500">
@@ -77,7 +101,7 @@ export function PrepDashboard() {
                     </div>
 
                     {activeSchedule.tasks.map((task) => {
-                        const recipe = mockRecipes.find(r => r.id === task.recipeId);
+                        const recipe = recipes.find(r => r.id === task.recipeId);
                         const isCompleted = task.status === 'completed';
 
                         return (
@@ -128,14 +152,17 @@ export function PrepDashboard() {
                             <AlertCircle size={14} /> Critical Inventory
                         </div>
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center bg-ink-200/50 p-3 rounded-xl border border-jet-700">
-                                <div className="text-sm font-bold text-gray-200">Unsalted Butter</div>
-                                <Badge variant="danger">1.2 kg Remaining</Badge>
-                            </div>
-                            <div className="flex justify-between items-center bg-ink-200/50 p-3 rounded-xl border border-jet-700">
-                                <div className="text-sm font-bold text-gray-200">AP Flour</div>
-                                <Badge variant="warning">Low Stock (5kg)</Badge>
-                            </div>
+                            {criticalInventory.map(item => (
+                                <div key={item.id} className="flex justify-between items-center bg-ink-200/50 p-3 rounded-xl border border-jet-700">
+                                    <div className="text-sm font-bold text-gray-200">{item.name}</div>
+                                    <Badge variant={(item.stockKitchen || 0) <= 0 ? "danger" : "warning"}>
+                                        {item.stockKitchen || 0} {item.stockUnit}
+                                    </Badge>
+                                </div>
+                            ))}
+                            {criticalInventory.length === 0 && (
+                                <div className="text-center text-gray-500 text-xs py-4 italic">No critical alerts</div>
+                            )}
                         </div>
                         <Button variant="ghost" className="w-full mt-4 text-xs font-bold text-teal-bright uppercase tracking-widest">
                             Open Full Inventory <TrendingUp size={14} className="ml-2" />

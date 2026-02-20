@@ -11,7 +11,7 @@ export type UUID = string;
 export type ISODate = string;
 
 export * from '@hyphae/schemas';
-import { Concept, Category, Product, ModifierGroup, ModifierOption, RecipeComponent, InventoryItem } from '@hyphae/schemas';
+import { Concept, Category, Product, ModifierGroup, ModifierOption, RecipeComponent, InventoryItem, RecipeDefinition } from '@hyphae/schemas';
 
 // --- 1. HIERARCHY ---
 
@@ -21,19 +21,8 @@ import { Concept, Category, Product, ModifierGroup, ModifierOption, RecipeCompon
 
 
 // --- 3. RECIPES (Back of House) ---
-
-export interface Recipe {
-  productId?: string; // FK to Product (Optional for BATCH)
-  name: string;
-  type: 'BATCH' | 'ASSEMBLY';
-  yieldQuantity: number;
-  yieldUnit: string;
-  stationId: string;
-  cookTimeSeconds: number;
-  activePrepTimeSeconds: number;
-  volumetricScore: number;
-  components: RecipeComponent[];
-}
+// Note: Using RecipeDefinition from @hyphae/schemas which is already exported via * above.
+// Legacy Recipe interface removed to avoid confusion.
 
 // --- 4. INVENTORY & WASTE ---
 // Use shared InventoryItem type
@@ -68,7 +57,7 @@ export interface MenuRelease {
   concepts: Concept[];
   categories: Category[];
   products: Product[];
-  recipes: Recipe[]; // Added to release
+  recipes: RecipeDefinition[]; // Added to release
 }
 
 // --- 6. OPERATIONAL DATA (Analytics) ---

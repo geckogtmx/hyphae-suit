@@ -1,110 +1,28 @@
-export type MeasurementUnit = 'oz' | 'lb' | 'g' | 'kg' | 'fl_oz' | 'qt' | 'gal' | 'count';
+import type {
+    InventoryItem,
+    RecipeComponent,
+    RecipeStep,
+    RecipeDefinition,
+    MeasurementUnit,
+    Order,
+    OrderItem,
+    OrderStatus,
+    PaymentStatus
+} from '@hyphae/schemas';
 
-// --- SHARED WITH POS (DO NOT MODIFY WITHOUT SYNC) ---
+export type {
+    InventoryItem,
+    RecipeComponent,
+    RecipeStep,
+    RecipeDefinition,
+    MeasurementUnit,
+    Order,
+    OrderItem,
+    OrderStatus,
+    PaymentStatus
+};
 
-export interface InventoryItem {
-    id: string;
-    name: string;
-    type: 'RAW' | 'PREP'; // RAW is bought, PREP is made in-house
-    stockUnit: MeasurementUnit;
-    costPerUnit: number; // For cost averaging
-    parLevel?: number;
-    // BOH Extensions (Local only until sync)
-    currentStock: number; // BOH tracks this live
-    storageLocation?: string;
-    lastReceivedAt?: number;
-    expiryDate?: string; // ISO
-}
-
-export interface RecipeComponent {
-    inventoryItemId: string;
-    quantity: number;
-    unit: MeasurementUnit;
-    wasteFactor?: number;
-}
-
-export interface PackagingMetadata {
-    sku: string;
-    volumePoints: number;
-    isMessy: boolean;
-}
-
-export interface ModifierOption {
-    id: string;
-    name: string;
-    price: number;
-    metadata?: {
-        kitchenLabel?: string;
-        quantity?: number;
-    };
-    inventoryMetadata?: {
-        recipeId?: string;
-        directDepletion?: RecipeComponent[];
-    };
-}
-
-export interface ModifierDependency {
-    groupId: string;
-    requiredOptions?: string[];
-}
-
-export interface ModifierGroup {
-    id: string;
-    name: string;
-    required: boolean;
-    multiSelect: boolean;
-    options: ModifierOption[];
-    dependency?: ModifierDependency;
-    variant?: string;
-}
-
-export interface Product {
-    id: string;
-    name: string;
-    price: number;
-    categoryId: string;
-    requiresMods: boolean;
-    stock?: number;
-    modifierGroups?: ModifierGroup[];
-    metadata?: {
-        kitchenLabel?: string;
-        quantity?: number;
-    };
-    packaging?: PackagingMetadata;
-    inventoryMetadata?: {
-        recipeId?: string;
-        directDepletion?: RecipeComponent[];
-    };
-}
-
-// --- BOH SPECIFIC TYPES (FROM PROMPT & PDF) ---
-
-export interface RecipeStep {
-    stepNumber: number;
-    instruction: string;
-    type: 'active' | 'passive'; // PDF: Chemistry/Physics vs Mechanics
-    durationMinutes?: number;
-    isCheckpoint?: boolean;
-    image?: string;
-    tips?: string[];
-    equipmentNeeded?: string[]; // "Oven_Slot_1"
-}
-
-export interface RecipeDefinition {
-    id: string;
-    name: string;
-    category: 'bread' | 'sauce' | 'protein' | 'produce' | 'assembly';
-    yieldQuantity: number;
-    yieldUnit: MeasurementUnit;
-    activeTimeMinutes: number;
-    totalTimeMinutes: number;
-    components: RecipeComponent[];
-    steps: RecipeStep[];
-    equipment: string[];
-    storageInstructions?: string;
-    shelfLifeDays?: number;
-    outputInventoryItemId?: string;
-}
+// --- BOH SPECIFIC TYPES (STILL LOCAL UNTIL FULL SYNC) ---
 
 export interface PrepTask {
     id: string;
@@ -185,4 +103,5 @@ export interface InventoryStore {
     getPrepInventory: () => InventoryItem[];
     updateQuantity: (id: string, quantity: number) => void;
     adjustParLevel: (id: string, level: number) => void;
+    fetchInventory: () => Promise<void>;
 }

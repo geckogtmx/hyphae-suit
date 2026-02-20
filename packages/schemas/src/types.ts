@@ -23,7 +23,11 @@ export interface InventoryItem {
     stockUnit: MeasurementUnit;
     costPerUnit: number;
     parLevel?: number;
-    currentStock?: number; // Core uses this
+    stockKitchen?: number; // BOH
+    stockStand?: number; // FOH
+    preferredSupplierId?: string;
+    /** @deprecated Use stockKitchen or stockStand */
+    currentStock?: number; // Core uses this (Legacy)
 }
 
 export interface RecipeComponent {
@@ -106,14 +110,32 @@ export interface Product {
 
 // --- RECIPES ---
 
+export interface RecipeStep {
+    stepNumber: number;
+    instruction: string;
+    type: 'active' | 'passive';
+    durationMinutes?: number;
+    isCheckpoint?: boolean;
+    image?: string;
+    tips?: string[];
+    equipmentNeeded?: string[];
+}
+
 export interface RecipeDefinition {
     id: string;
     name: string;
+    type: 'BATCH' | 'ASSEMBLY';
+    category: 'bread' | 'sauce' | 'protein' | 'produce' | 'assembly';
     yieldQuantity: number;
     yieldUnit: MeasurementUnit;
+    activeTimeMinutes: number;
+    totalTimeMinutes: number;
     components: RecipeComponent[];
-    instructions?: string[];
-    outputInventoryItemId?: string;
+    steps: RecipeStep[];
+    equipment: string[]; // List of required equipment IDs/classes
+    storageInstructions?: string;
+    shelfLifeDays?: number;
+    outputInventoryItemId?: string; // If BATCH, produces this item
 }
 
 // --- SYSTEM & STAFF ---

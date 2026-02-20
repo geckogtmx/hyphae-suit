@@ -203,7 +203,7 @@ const seed = async () => {
         }).onConflictDoNothing();
 
         await db.update(schema.inventoryItems)
-          .set({ currentStock: 100 })
+          .set({ stockKitchen: 100 })
           .where(eq(schema.inventoryItems.id, item.id));
       }
     }

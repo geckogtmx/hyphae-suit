@@ -13,6 +13,7 @@
 - [x] **Loyalty Registration (UI)**: Implemented via "Lucky Issuance" flow & Manual Trigger (Code 0000).
 - [x] **Token Swapping**: Added Manager override to swap physical cards.
 - [x] **E2E Verification**: Verified Loyalty Login -> Order -> Pay -> Database Persistence (Profile: BEE101). Next: Verify Kitchen routing.
+- [x] **Menu Archival (Recycle Bin)**: Implemented soft-delete, restoration, and permanent purge for products.
 
 ---
 
@@ -33,7 +34,13 @@
 ---
 
 ## 📋 On Deck
-- [ ] **BOH Receiving**: Build workflow for checking in supplier deliveries and stocking inventory.
-- [ ] **Live Prep Sync**: Bind KDS orders to real-time prep lists for station awareness.
-- [ ] **Shift Log/HACCP**: Implement mandatory temperature checkpoints & shift handover logs.
-- [ ] **Loyalty Redemption UI**: Finish connecting Gold/Vip perk selection in POS cart.
+- [x] **BOH Receiving**: Built workflow for checking in supplier deliveries and stocking inventory.
+- [x] **Recipe BOM Integration**: Implemented full Implosion/Explosion logic. Added Batch Production tracking (Raw -> Prep) and Recipe CRUD.
+- [x] **Dual Inventory**: Separated Stock into Kitchen (BOH) vs Stand (POS). Added Transfer API & UI.
+- [x] **Clarify Recipe Types**: Renamed 'ASSEMBLY' -> 'PRODUCT' in UI to distinguish sellable items from BATCH prep.
+- [x] **Multi-Menu Modality**:
+  - [x] **Audit**: Ensure only "Code BS" (Burgers) and "Tacocracy" (Tacos) exist.
+  - [ ] **POS**: Enforce strict modality view.
+  - [x] **Core/BOH**: Add "Concept" filter to views (Recipes, Inventory) to toggle between menus.
+- [x] **Recipe Foundation**: Migrated recipes to database with support for complex burger assembly (Meats, Veggie, all Sauces). Synchronized CORE & BOH apps to live API data.
+- [x] **Menu Builder Integration**: Completed full Product Builder with Recipe/Inventory linking. Implemented backend support for deep updates (Product -> Modifiers -> Options).

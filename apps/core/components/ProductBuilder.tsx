@@ -13,14 +13,21 @@ import {
     ChevronLeft,
     ChefHat,
     Check,
+    RotateCcw,
 } from 'lucide-react';
-import { Product, ModifierGroup, ModifierOption, Category, Concept } from '../types/schema';
+import { Product, ModifierGroup, ModifierOption, Category, Concept, RecipeDefinition, InventoryItem } from '../types/schema';
 
 interface ProductBuilderProps {
     products: Product[];
     categories: Category[];
+    recipes: RecipeDefinition[];
+    inventory: InventoryItem[];
     activeConcept: Concept;
     onSave: (products: Product[]) => Promise<void>;
+    onDelete: (id: string) => Promise<void>;
+    onRestore: (id: string) => Promise<void>;
+    onPermanentDelete: (id: string) => Promise<void>;
+    isTrashMode?: boolean;
     onClose?: () => void;
 }
 
@@ -29,8 +36,14 @@ const generateId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().
 export const ProductBuilder: React.FC<ProductBuilderProps> = ({
     products: initialProducts,
     categories,
+    recipes,
+    inventory,
     activeConcept,
     onSave,
+    onDelete,
+    onRestore,
+    onPermanentDelete,
+    isTrashMode,
     onClose
 }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -44,6 +57,22 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
         sequences.length > 0 ? sequences[0].id : null
     );
     const [selectedStepId, setSelectedStepId] = useState<string | null>('ROOT');
+
+    // SYNC local state when products prop changes (e.g. Concept Switch)
+    useEffect(() => {
+        setSequences(initialProducts);
+
+        // Only auto-select first item if current selection is invalid or null
+        // This prevents jumping back to first item after a Save operation
+        if (initialProducts.length > 0) {
+            if (!selectedSequenceId || !initialProducts.find(p => p.id === selectedSequenceId)) {
+                setSelectedSequenceId(initialProducts[0].id);
+                setSelectedStepId('ROOT');
+            }
+        } else {
+            setSelectedSequenceId(null);
+        }
+    }, [initialProducts]);
 
     // Ref for horizontal scrolling timeline
     const timelineRef = useRef<HTMLDivElement>(null);
@@ -67,7 +96,7 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
         return [rootStep, ...groupSteps];
     }, [activeSequence]);
 
-    const activeVisualStep = visualSteps.find((s) => s.id === selectedStepId) || visualSteps[0];
+    const activeVisualStep = visualSteps.find((s) => s.id === selectedStepId) || (visualSteps.length > 0 ? visualSteps[0] : null);
     const isActiveStepRoot = selectedStepId === 'ROOT';
 
     // Handle Mouse Wheel for Horizontal Scrolling on Timeline
@@ -272,9 +301,9 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                 <div
                     className={`bg-black/20 border-r border-white/10 flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 border-none overflow-hidden'}`}
                 >
-                    <div className="p-4 border-b border-white/10 flex justify-between items-center shrink-0">
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            Sequences
+                    <div className={`p-4 border-b border-white/10 flex justify-between items-center shrink-0 ${isTrashMode ? 'bg-red-500/10' : ''}`}>
+                        <span className={`text-xs font-bold uppercase tracking-wider ${isTrashMode ? 'text-red-500' : 'text-gray-500'}`}>
+                            {isTrashMode ? 'Recycle Bin' : 'Sequences'}
                         </span>
                         <button
                             onClick={handleCreateSequence}
@@ -284,18 +313,69 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                         </button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                        {sequences.map((seq) => (
-                            <button
-                                key={seq.id}
-                                onClick={() => handleSelectSequence(seq.id)}
-                                className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between group whitespace-nowrap ${selectedSequenceId === seq.id ? 'bg-white/10 text-white border border-white/10 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
-                            >
-                                <span className="truncate pr-2">{seq.name}</span>
-                                {selectedSequenceId === seq.id && (
-                                    <ChevronRight size={14} className="text-brand shrink-0" />
-                                )}
-                            </button>
-                        ))}
+                        {sequences.map((s) => {
+                            const isSelected = selectedSequenceId === s.id;
+                            return (
+                                <button
+                                    key={s.id}
+                                    onClick={() => handleSelectSequence(s.id)}
+                                    className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between group whitespace-nowrap ${isSelected ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                    <div className="flex items-center justify-between group-hover:px-1 transition-all flex-1 min-w-0">
+                                        <div className="flex items-center space-x-3 min-w-0">
+                                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-black shadow-inner flex-shrink-0 ${activeConcept.id === 'tacocracy' ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                {activeConcept.name[0]}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className={`text-sm font-bold tracking-tight truncate ${isSelected ? 'text-black' : 'text-white'}`}>
+                                                    {s.name}
+                                                </div>
+                                                <div className={`text-[10px] font-mono font-bold uppercase truncate ${isSelected ? 'text-black/50' : 'text-gray-500'}`}>
+                                                    ${s.price.toFixed(2)} • {activeConcept.name.toUpperCase()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {isTrashMode ? (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onRestore(s.id);
+                                                        }}
+                                                        className="p-1.5 rounded-md hover:bg-black/10 transition-colors text-blue-400 hover:text-blue-300"
+                                                        title="Restore"
+                                                    >
+                                                        <RotateCcw size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onPermanentDelete(s.id);
+                                                        }}
+                                                        className="p-1.5 rounded-md hover:bg-black/10 transition-colors text-red-500 hover:text-red-400"
+                                                        title="Delete Permanently"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDelete(s.id);
+                                                    }}
+                                                    className={`p-1.5 rounded-md hover:bg-black/10 transition-colors ${isSelected ? 'text-black/60 hover:text-red-600' : 'text-gray-500 hover:text-red-400'}`}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            {isSelected && <ChevronRight size={16} className="shrink-0" />}
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -337,7 +417,7 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pb-20 pr-2">
                                     <div className="col-span-1 space-y-6">
                                         <div>
                                             <label className="block text-xs font-mono text-gray-500 mb-1">
@@ -372,10 +452,12 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                                         </span>
                                                         <input
                                                             type="number"
+                                                            step="0.01"
                                                             value={activeSequence.price}
-                                                            onChange={(e) =>
-                                                                updateRootItem({ price: parseFloat(e.target.value) })
-                                                            }
+                                                            onChange={(e) => {
+                                                                const val = parseFloat(e.target.value);
+                                                                updateRootItem({ price: isNaN(val) ? 0 : val });
+                                                            }}
                                                             className="w-full bg-black/40 border border-white/10 rounded-lg pl-6 pr-3 py-2 text-white focus:border-brand outline-none font-mono"
                                                         />
                                                     </div>
@@ -490,6 +572,93 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                                             className={`absolute top-1 left-1 bg-black w-4 h-4 rounded-full transition-transform ${(activeVisualStep as ModifierGroup).multiSelect ? 'translate-x-6' : 'translate-x-0'}`}
                                                         />
                                                     </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {isActiveStepRoot && (
+                                            <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+                                                <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-3 flex items-center">
+                                                    <Link size={12} className="mr-1" /> Inventory & Supply Chain
+                                                </h4>
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">
+                                                            Sourcing Strategy
+                                                        </label>
+                                                        <select
+                                                            value={activeSequence.inventoryMetadata?.recipeId ? 'RECIPE' : activeSequence.inventoryMetadata?.directDepletion ? 'STOCK' : 'NONE'}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === 'NONE') {
+                                                                    updateRootItem({ inventoryMetadata: undefined });
+                                                                } else if (val === 'RECIPE') {
+                                                                    updateRootItem({ inventoryMetadata: { recipeId: '' } });
+                                                                } else if (val === 'STOCK') {
+                                                                    updateRootItem({ inventoryMetadata: { directDepletion: [] } });
+                                                                }
+                                                            }}
+                                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none uppercase"
+                                                        >
+                                                            <option value="NONE">No Link (Service/Ad-hoc)</option>
+                                                            <option value="RECIPE">Produced from Recipe (Assembly)</option>
+                                                            <option value="STOCK">Direct Stock Item (Resale)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    {activeSequence.inventoryMetadata?.recipeId !== undefined && (
+                                                        <div>
+                                                            <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">
+                                                                Select Master Protocol
+                                                            </label>
+                                                            <select
+                                                                value={activeSequence.inventoryMetadata.recipeId || ''}
+                                                                onChange={(e) => updateRootItem({
+                                                                    inventoryMetadata: { recipeId: e.target.value }
+                                                                })}
+                                                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                                                            >
+                                                                <option value="">-- Select Recipe --</option>
+                                                                {recipes.map(r => (
+                                                                    <option key={r.id} value={r.id}>
+                                                                        {r.name} ({r.yieldQuantity} {r.yieldUnit})
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    )}
+
+                                                    {activeSequence.inventoryMetadata?.directDepletion !== undefined && (
+                                                        <div>
+                                                            <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">
+                                                                Select Stock Item
+                                                            </label>
+                                                            <select
+                                                                value={activeSequence.inventoryMetadata.directDepletion?.[0]?.inventoryItemId || ''}
+                                                                onChange={(e) => {
+                                                                    const item = inventory.find(i => i.id === e.target.value);
+                                                                    if (item) {
+                                                                        updateRootItem({
+                                                                            inventoryMetadata: {
+                                                                                directDepletion: [{
+                                                                                    inventoryItemId: item.id,
+                                                                                    quantity: 1,
+                                                                                    unit: item.stockUnit
+                                                                                }]
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                                                            >
+                                                                <option value="">-- Select Inventory --</option>
+                                                                {inventory.map(i => (
+                                                                    <option key={i.id} value={i.id}>
+                                                                        {i.name} ({i.stockUnit})
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -624,6 +793,43 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                                                             }
                                                                             className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-brand font-mono outline-none focus:border-brand/50"
                                                                         />
+                                                                    </div>
+                                                                    <div className="col-span-2 pt-2 border-t border-white/5">
+                                                                        <label className="text-[9px] text-emerald-500 uppercase tracking-widest font-bold mb-1 block">
+                                                                            Supply Chain Map
+                                                                        </label>
+                                                                        <select
+                                                                            value={opt.inventoryMetadata?.recipeId ? `RECIPE:${opt.inventoryMetadata.recipeId}` : opt.inventoryMetadata?.directDepletion?.[0]?.inventoryItemId ? `STOCK:${opt.inventoryMetadata.directDepletion[0].inventoryItemId}` : 'NONE'}
+                                                                            onChange={(e) => {
+                                                                                const val = e.target.value;
+                                                                                if (val === 'NONE') {
+                                                                                    updateOption(opt.id, { inventoryMetadata: undefined });
+                                                                                } else if (val.startsWith('RECIPE:')) {
+                                                                                    updateOption(opt.id, { inventoryMetadata: { recipeId: val.split(':')[1] } });
+                                                                                } else if (val.startsWith('STOCK:')) {
+                                                                                    const itemId = val.split(':')[1];
+                                                                                    const item = inventory.find(i => i.id === itemId);
+                                                                                    updateOption(opt.id, {
+                                                                                        inventoryMetadata: {
+                                                                                            directDepletion: item ? [{ inventoryItemId: itemId, quantity: 1, unit: item.stockUnit }] : []
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                            className="w-full bg-black/40 border border-emerald-500/30 rounded px-2 py-1 text-xs text-gray-300 outline-none focus:border-emerald-500"
+                                                                        >
+                                                                            <option value="NONE">No Supply Link</option>
+                                                                            <optgroup label="Direct Stock">
+                                                                                {inventory.map(i => (
+                                                                                    <option key={i.id} value={`STOCK:${i.id}`}>{i.name}</option>
+                                                                                ))}
+                                                                            </optgroup>
+                                                                            <optgroup label="Recipes">
+                                                                                {recipes.map(r => (
+                                                                                    <option key={r.id} value={`RECIPE:${r.id}`}>{r.name}</option>
+                                                                                ))}
+                                                                            </optgroup>
+                                                                        </select>
                                                                     </div>
                                                                 </div>
                                                             )}

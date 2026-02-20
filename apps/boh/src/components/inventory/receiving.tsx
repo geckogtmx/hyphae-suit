@@ -1,59 +1,100 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, Button, Badge } from '../ui/base';
 import { useInventoryStore } from '../../stores/inventoryStore';
 
 type UnitType = 'standard' | 'bulk'; // kg vs sack
 
 export function ReceivingForm() {
-    const { inventory, updateQuantity } = useInventoryStore();
+    const { inventory, fetchInventory } = useInventoryStore();
     const [selectedItem, setSelectedItem] = useState<string>('');
+    const [loading, setLoading] = useState(false);
 
     // Form Input
     const [unitType, setUnitType] = useState<UnitType>('standard');
     const [unitCount, setUnitCount] = useState<number>(1);
     const [netWeight, setNetWeight] = useState<number>(0);
     const [totalCost, setTotalCost] = useState<number>(0);
+    const [search, setSearch] = useState('');
 
     const calculatedCostPerUnit = useMemo(() => {
         if (!totalCost || !netWeight) return 0;
         return totalCost / netWeight;
     }, [totalCost, netWeight]);
 
-    const handleSubmit = () => {
-        if (!selectedItem) return;
-        // Mock API Call to update HCA
-        console.log({
-            itemId: selectedItem,
-            received: unitCount,
-            netWeight,
-            costPerUnit: calculatedCostPerUnit
-        });
-        updateQuantity(selectedItem, Number((inventory.find(i => i.id === selectedItem)?.currentStock || 0) + netWeight));
+    useEffect(() => {
+        fetchInventory();
+    }, [fetchInventory]);
 
-        // Reset form
-        setUnitCount(1);
-        setNetWeight(0);
-        setTotalCost(0);
+    const handleSubmit = async () => {
+        if (!selectedItem) return;
+        setLoading(true);
+
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/inventory/receive`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
+                },
+                body: JSON.stringify({
+                    itemId: selectedItem,
+                    quantity: netWeight, // Total quantity added
+                    cost: calculatedCostPerUnit,
+                    supplierId: 'manual-entry'
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert(`Receiving Failed: ${err.error}`);
+                return;
+            }
+
+            alert('Stock Received Successfully');
+
+            // Reset form
+            setUnitCount(1);
+            setNetWeight(0);
+            setTotalCost(0);
+            setSelectedItem('');
+
+        } catch (e) {
+            console.error('API Error', e);
+            alert('Network Error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <Card className="bg-ink-500 p-6 max-w-2xl mx-auto">
+        <Card className="bg-ink-500 p-6 max-w-2xl mx-auto h-full overflow-y-auto">
             <h2 className="text-2xl font-bold mb-6 text-white border-b border-jet-700 pb-2">Receiving Mode (Ingestion Firewall)</h2>
 
             <div className="space-y-6">
                 {/* 1. Item Selection */}
                 <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">Item to Receive</label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {inventory.map((i: any) => (
-                            <Button
-                                key={i.id}
-                                variant={selectedItem === i.id ? 'primary' : 'outline'}
-                                onClick={() => setSelectedItem(i.id)}
-                            >
-                                {i.name}
-                            </Button>
-                        ))}
+                    <input
+                        type="text"
+                        placeholder="Search items..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-jet-800 border border-jet-600 rounded p-2 text-white mb-2 focus:border-teal-500 outline-none"
+                    />
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                        {inventory
+                            .filter((i) => (i.type === 'RAW' || i.type === 'READY') && i.name.toLowerCase().includes(search.toLowerCase()))
+                            .map((i: any) => (
+                                <Button
+                                    key={i.id}
+                                    variant={selectedItem === i.id ? 'primary' : 'outline'}
+                                    onClick={() => setSelectedItem(i.id)}
+                                    className="justify-start text-left"
+                                >
+                                    <span className="truncate">{i.name}</span>
+                                    <Badge variant="info" className="ml-auto text-[10px]">{Number(i.stockKitchen || 0).toFixed(1)} {i.stockUnit}</Badge>
+                                </Button>
+                            ))}
                     </div>
                 </div>
 

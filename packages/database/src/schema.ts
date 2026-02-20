@@ -47,7 +47,8 @@ export const inventoryItems = sqliteTable('inventory_items', {
   type: text('type').notNull(), // RAW, PREP, READY
   stockUnit: text('stock_unit').notNull(), // lb, oz, count
   costPerUnit: real('cost_per_unit').notNull(),
-  currentStock: real('current_stock').default(0),
+  stockKitchen: real('stock_kitchen').default(0), // BOH (Back of House)
+  stockStand: real('stock_stand').default(0), // FOH (Front of House / Stand)
   preferredSupplierId: text('preferred_supplier_id').references(() => suppliers.id),
 });
 
@@ -67,10 +68,25 @@ export const recipes = sqliteTable('recipes', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   type: text('type').notNull().default('BATCH'), // BATCH (Prep), ASSEMBLY (Sales)
+  category: text('category').default('assembly'), // bread, sauce, protein, produce, assembly
   yieldQuantity: real('yield_quantity').notNull(),
   yieldUnit: text('yield_unit').notNull(),
+  activeTimeMinutes: integer('active_time_minutes').default(0),
+  totalTimeMinutes: integer('total_time_minutes').default(0),
   outputInventoryItemId: text('output_inventory_item_id').references(() => inventoryItems.id), // If Batch
-  instructions: text('instructions'), // JSON string or text
+  storageInstructions: text('storage_instructions'),
+  shelfLifeDays: integer('shelf_life_days'),
+  equipment: text('equipment'), // Comma-separated list
+});
+
+export const recipeSteps = sqliteTable('recipe_steps', {
+  id: text('id').primaryKey(),
+  recipeId: text('recipe_id').notNull().references(() => recipes.id),
+  stepNumber: integer('step_number').notNull(),
+  instruction: text('instruction').notNull(),
+  type: text('type').notNull().default('active'), // active, passive
+  durationMinutes: integer('duration_minutes'),
+  isCheckpoint: integer('is_checkpoint', { mode: 'boolean' }).default(false),
 });
 
 export const recipeIngredients = sqliteTable('recipe_ingredients', {
@@ -109,6 +125,11 @@ export const products = sqliteTable('products', {
 
   // Linked Assembly Recipe (for auto-depletion)
   recipeId: text('recipe_id').references(() => recipes.id),
+  // Direct Inventory Link (Simple Product)
+  inventoryItemId: text('inventory_item_id').references(() => inventoryItems.id),
+
+  // Soft Delete
+  deletedAt: integer('deleted_at'),
 });
 
 export const modifierGroups = sqliteTable('modifier_groups', {
@@ -124,6 +145,9 @@ export const modifierOptions = sqliteTable('modifier_options', {
   name: text('name').notNull(),
   price: real('price').default(0),
   kitchenLabel: text('kitchen_label'),
+  // Inventory Map
+  recipeId: text('recipe_id').references(() => recipes.id),
+  inventoryItemId: text('inventory_item_id').references(() => inventoryItems.id),
 });
 
 // Junction: Products <-> Modifier Groups
@@ -225,6 +249,14 @@ export const inventoryItemsRelations = relations(inventoryItems, ({ one, many })
 
 export const recipesRelations = relations(recipes, ({ many }) => ({
   ingredients: many(recipeIngredients),
+  steps: many(recipeSteps),
+}));
+
+export const recipeStepsRelations = relations(recipeSteps, ({ one }) => ({
+  recipe: one(recipes, {
+    fields: [recipeSteps.recipeId],
+    references: [recipes.id],
+  }),
 }));
 
 export const recipeIngredientsRelations = relations(recipeIngredients, ({ one }) => ({

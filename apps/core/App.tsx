@@ -59,7 +59,6 @@ import {
    InventoryItem,
    DeviceState,
    TransactionRecord,
-   Recipe,
    RecipeDefinition,
    FinancialMetrics,
    VendorInvoice,
@@ -644,23 +643,145 @@ const IntelligenceView = () => {
 };
 
 const ProductConfigView = ({
-   products,
-   onSave,
    categories,
    concepts
 }: {
-   products: Product[],
-   onSave: (p: Product[]) => Promise<void>,
    categories: Category[],
    concepts: Concept[]
 }) => {
+   const [products, setProducts] = useState<Product[]>([]);
+   const [trash, setTrash] = useState<Product[]>([]);
+   const [recipes, setRecipes] = useState<RecipeDefinition[]>([]);
+   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [selectedConceptId, setSelectedConceptId] = useState<string>(concepts[0].id);
+   const [showTrash, setShowTrash] = useState(false);
+
+   useEffect(() => {
+      Promise.all([
+         ApiClient.getProducts(),
+         ApiClient.getTrash(),
+         ApiClient.getRecipes(),
+         ApiClient.getInventory()
+      ]).then(([p, t, r, i]) => {
+         setProducts(p && p.length > 0 ? p : MOCK_DATA.products);
+         setTrash(t || []);
+         setRecipes(r);
+         setInventory(i);
+         setLoading(false);
+      });
+   }, []);
+
+   const handleSave = async (updatedProducts: Product[]) => {
+      // Update local states immediately for responsive UI
+      setProducts(prev => prev.map(p => {
+         const updated = updatedProducts.find(u => u.id === p.id);
+         return updated || p;
+      }));
+
+      setTrash(prev => prev.map(p => {
+         const updated = updatedProducts.find(u => u.id === p.id);
+         return updated || p;
+      }));
+
+      // Handle new products added in the builder (always start as active)
+      const isNew = (u: Product) => !products.find(p => p.id === u.id) && !trash.find(p => p.id === u.id);
+      const newProducts = updatedProducts.filter(isNew);
+
+      if (newProducts.length > 0) {
+         setProducts(prev => [...prev, ...newProducts]);
+      }
+
+      // Sync with API - send the complete set of known items
+      // We combine current products, trash, and any new ones, applying updates
+      const allProducts = [...products, ...trash, ...newProducts].map(p => {
+         const updated = updatedProducts.find(u => u.id === p.id);
+         return updated || p;
+      });
+
+      await ApiClient.updateProducts(allProducts);
+   };
+
+   const handleDelete = async (productId: string) => {
+      const product = products.find(p => p.id === productId);
+      if (!product) return;
+
+      await ApiClient.deleteProduct(productId);
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      setTrash(prev => [...prev, product]);
+   };
+
+   const handleRestore = async (productId: string) => {
+      const product = trash.find(p => p.id === productId);
+      if (!product) return;
+
+      await ApiClient.restoreProduct(productId);
+      setTrash(prev => prev.filter(p => p.id !== productId));
+      setProducts(prev => [...prev, product]);
+   };
+
+   const handlePermanentDelete = async (productId: string) => {
+      if (!confirm('PERMANENTLY DELETE FROM ARCHIVES? This cannot be undone.')) return;
+      await ApiClient.permanentlyDeleteProduct(productId);
+      setTrash(prev => prev.filter(p => p.id !== productId));
+   };
+
+   if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-brand font-mono animate-pulse">Initializing Knowledge Base...</div>;
+
+   const activeConcept = concepts.find(c => c.id === selectedConceptId) || concepts[0];
+   const conceptCategories = categories.filter(c => c.conceptId === selectedConceptId);
+
+   const currentItems = showTrash ? trash : products;
+   const filteredProducts = currentItems.filter(p =>
+      conceptCategories.some(cat => cat.id === p.categoryId)
+   );
+
    return (
       <div className="p-6 pt-24 pb-12 max-w-[1600px] mx-auto min-h-screen">
+         <div className="flex items-center justify-between mb-8">
+            {/* Concept Switcher */}
+            <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/5 w-fit">
+               {concepts.map(c => (
+                  <button
+                     key={c.id}
+                     onClick={() => {
+                        setSelectedConceptId(c.id);
+                        setShowTrash(false);
+                     }}
+                     className={`px-6 py-2.5 rounded-xl font-black text-xs tracking-widest transition-all ${selectedConceptId === c.id && !showTrash
+                        ? 'bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/10'
+                        : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                     {c.name.toUpperCase()}
+                  </button>
+               ))}
+            </div>
+
+            <button
+               onClick={() => setShowTrash(!showTrash)}
+               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs tracking-widest transition-all border ${showTrash
+                  ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                  : 'bg-black/40 text-gray-500 border-white/5 hover:text-gray-300'}`}
+            >
+               <span className="relative flex h-2 w-2">
+                  {trash.length > 0 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${trash.length > 0 ? 'bg-red-500' : 'bg-gray-700'}`}></span>
+               </span>
+               {showTrash ? 'VIEW ACTIVE MENU' : 'RECYCLE BIN'}
+            </button>
+         </div>
+
          <ProductBuilder
-            products={products}
-            onSave={onSave}
-            categories={categories}
-            activeConcept={concepts[0]}
+            products={filteredProducts}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onRestore={handleRestore}
+            onPermanentDelete={handlePermanentDelete}
+            isTrashMode={showTrash}
+            categories={conceptCategories}
+            recipes={recipes}
+            inventory={inventory}
+            activeConcept={activeConcept}
          />
       </div>
    );
@@ -729,13 +850,12 @@ const App = () => {
                {activeView === 'intelligence' && <IntelligenceView />}
                {activeView === 'products' && (
                   <ProductConfigView
-                     products={products}
-                     onSave={handleSaveProducts}
                      categories={MOCK_DATA.categories}
                      concepts={MOCK_DATA.concepts}
                   />
                )}
                {activeView === 'inventory' && <InventoryView />}
+               {activeView === 'kitchen' && <RecipesView />}
                {activeView === 'devices' && <DevicesView devices={devices} />}
             </main>
          </div>

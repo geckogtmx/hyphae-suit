@@ -54,7 +54,39 @@ export const usePrepStore = create<PrepStore>((set) => ({
         console.log('Pause task', taskId);
     },
 
-    completeTask: (taskId) => {
+    completeTask: async (taskId) => {
+        const state = usePrepStore.getState();
+        const task = state.activeTasks.find(t => t.id === taskId);
+
+        if (task && task.recipeId) {
+            try {
+                // Call API to execute production (deduct ingredients, add output)
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/inventory/produce`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
+                    },
+                    body: JSON.stringify({
+                        recipeId: task.recipeId,
+                        quantity: task.targetQuantity
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    console.error('Failed to complete production:', err);
+                    alert(`Production Failed: ${err.error}`);
+                    return; // Don't remove task if failed
+                }
+
+                console.log('Production recorded successfully');
+            } catch (e) {
+                console.error('API Error:', e);
+                return;
+            }
+        }
+
         set((state) => ({
             activeTasks: state.activeTasks.filter((t) => t.id !== taskId),
             selectedTask: state.activeTasks.find((t) => t.id !== taskId) || null

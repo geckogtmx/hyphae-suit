@@ -308,19 +308,13 @@ export const RECIPES: RecipeDefinition[] = [
 
 export const CONCEPTS: Concept[] = [
     { id: 'tacocracy', name: 'Tacocracy', color: 'orange-500' },
-    { id: 'codebs_concept', name: 'Code BS', color: 'red-500' },
-    // Core duplicates 'Code B-Smash' as 'cbs_01', we should alias or merge.
-    // For now, keeping both to avoid breakage, but this is a tech debt item.
-    { id: 'cbs_01', name: 'Code B-Smash (Core)', color: 'orange-500', flowType: 'sequential' }
+    { id: 'codebs_concept', name: 'Code BS', color: 'red-500' }
 ];
 
 export const CATEGORIES: Category[] = [
     { id: 'burgers', name: 'Burgers', conceptId: 'codebs_concept' },
     { id: 'tacos', name: 'Tacos', conceptId: 'tacocracy' },
-    { id: 'burritos', name: 'Burritos', conceptId: 'tacocracy' },
-    // Core
-    { id: 'cat_burgers', name: 'Smash Burgers', conceptId: 'cbs_01' },
-    { id: 'cat_sides', name: 'Sides', conceptId: 'cbs_01' }
+    { id: 'burritos', name: 'Burritos', conceptId: 'tacocracy' }
 ];
 
 // --- MODIFIERS ---
@@ -627,9 +621,9 @@ export const PRODUCTS: Product[] = [
         id: 'item_compiler',
         name: 'The Compiler',
         price: 120.00,
-        categoryId: 'cat_burgers',
+        categoryId: 'burgers',
         requiresMods: true,
-        stock: 100,
+        currentStock: 100,
         metadata: { kitchenLabel: 'Compiler' },
         inventoryMetadata: { recipeId: 'recipe_compiler_burger' },
         active: true,
@@ -644,9 +638,9 @@ export const PRODUCTS: Product[] = [
         id: 'item_recursive',
         name: 'Recursive Onion',
         price: 110.00,
-        categoryId: 'cat_burgers',
+        categoryId: 'burgers',
         requiresMods: true,
-        stock: 50,
+        currentStock: 50,
         metadata: { kitchenLabel: 'Rec Onion' },
         active: true,
         stationId: 'station_grill',
@@ -660,7 +654,7 @@ export const PRODUCTS: Product[] = [
         id: 'item_sweet_fries',
         name: 'Sweet Potato Arrays',
         price: 65.00,
-        categoryId: 'cat_sides',
+        categoryId: 'burgers',
         requiresMods: false,
         metadata: { kitchenLabel: 'Swt Pot Fry' },
         inventoryMetadata: { recipeId: 'recipe_sweet_fries' },

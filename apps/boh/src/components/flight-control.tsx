@@ -60,7 +60,12 @@ export function FlightControl() {
                     <Button variant="secondary" size="xl" className="h-20 text-xl">
                         <Pause className="mr-3 w-8 h-8" /> PAUSE
                     </Button>
-                    <Button variant="primary" size="xl" className="h-20 text-2xl font-bold bg-teal-deep hover:bg-teal-mid">
+                    <Button
+                        variant="primary"
+                        size="xl"
+                        className="h-20 text-2xl font-bold bg-teal-deep hover:bg-teal-mid"
+                        onClick={() => selectedTask && usePrepStore.getState().completeTask(selectedTask.id)}
+                    >
                         DONE <ArrowRight className="ml-3 w-8 h-8" />
                     </Button>
                 </footer>

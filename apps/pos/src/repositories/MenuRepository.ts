@@ -31,6 +31,10 @@ export class MenuRepository implements IMenuRepository {
           name: opt.name,
           price: opt.price,
           kitchenLabel: opt.kitchenLabel,
+          inventoryMetadata: {
+            recipeId: opt.recipeId || undefined,
+            directDepletion: opt.inventoryItemId ? [{ inventoryItemId: opt.inventoryItemId, quantity: 1, unit: 'count' }] : undefined
+          }
         }))
       };
     }).filter((g: any) => g !== null);
@@ -43,7 +47,10 @@ export class MenuRepository implements IMenuRepository {
       requiresMods: row.requiresMods,
       packaging: row.packagingSku ? { sku: row.packagingSku, volumePoints: 0, isMessy: false } : undefined,
       metadata: { kitchenLabel: row.kitchenLabel },
-      inventoryMetadata: row.recipeId ? { recipeId: row.recipeId } : undefined,
+      inventoryMetadata: {
+        recipeId: row.recipeId || undefined,
+        directDepletion: row.inventoryItemId ? [{ inventoryItemId: row.inventoryItemId, quantity: 1, unit: 'count' }] : undefined
+      },
       modifierGroups: modifierGroups.length > 0 ? modifierGroups : undefined,
       active: row.isActive
     };
