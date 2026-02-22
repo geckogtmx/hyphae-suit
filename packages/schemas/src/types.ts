@@ -80,6 +80,8 @@ export interface Product {
     categoryId: string;
     requiresMods: boolean;
     stock?: number;
+    /** @deprecated Use stock, stockKitchen, or stockStand instead */
+    currentStock?: number;
     modifierGroups?: ModifierGroup[];
     metadata?: {
         kitchenLabel?: string; // e.g. "Brioche Buns"
@@ -124,15 +126,21 @@ export interface RecipeStep {
 export interface RecipeDefinition {
     id: string;
     name: string;
-    type: 'BATCH' | 'ASSEMBLY';
-    category: 'bread' | 'sauce' | 'protein' | 'produce' | 'assembly';
+    /** BATCH = produces a prep item in bulk; ASSEMBLY = depletes stock per sale. Omit for simple seed records. */
+    type?: 'BATCH' | 'ASSEMBLY';
+    /** Culinary category. Omit for simple seed records. */
+    category?: 'bread' | 'sauce' | 'protein' | 'produce' | 'assembly';
     yieldQuantity: number;
     yieldUnit: MeasurementUnit;
-    activeTimeMinutes: number;
-    totalTimeMinutes: number;
+    /** Active hands-on time in minutes. Omit for simple seed records. */
+    activeTimeMinutes?: number;
+    /** Total time including passive steps. Omit for simple seed records. */
+    totalTimeMinutes?: number;
     components: RecipeComponent[];
-    steps: RecipeStep[];
-    equipment: string[]; // List of required equipment IDs/classes
+    /** Step-by-step instructions. Omit for simple seed/assembly records. */
+    steps?: RecipeStep[];
+    /** Required equipment list. Omit for simple seed records. */
+    equipment?: string[];
     storageInstructions?: string;
     shelfLifeDays?: number;
     outputInventoryItemId?: string; // If BATCH, produces this item
