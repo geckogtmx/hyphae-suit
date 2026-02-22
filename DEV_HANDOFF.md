@@ -1,8 +1,8 @@
 # DEV_HANDOFF.md
 
-> **Last Updated:** 2026-02-22 12:28 CST
+> **Last Updated:** 2026-02-22 13:10 CST
 > **Last Model:** Gemini
-> **Session Focus:** Phase 3 POS Localization (complete) + Phase 4 Step 1 Explosion Engine
+> **Session Focus:** Phase 3 complete + Phase 4 Step 1 Explosion Engine + pre-existing TS build errors resolved
 
 ---
 
@@ -20,6 +20,9 @@
 - **POS — AuthService**: Offline PIN fallback — tries CORE API first (3s timeout), then queries local `users` table (`apps/pos/src/services/AuthService.ts`)
 - **Seed**: Added mass `updatedAt = Date.now()` stamp on all syncable tables at end of `seed.ts` — fixes delta sync returning 0 rows on fresh DB
 - **Seed**: Guarded `recipeId` null check in products loop — skips products with no recipe instead of crashing
+- **Types fix** (`packages/schemas/src/types.ts`): Made `RecipeDefinition` operational fields optional (`type`, `category`, `activeTimeMinutes`, `totalTimeMinutes`, `steps`, `equipment`) — seed/assembly records don't carry full culinary metadata
+- **Types fix** (`packages/schemas/src/types.ts`): Added `currentStock?: number` as deprecated alias on `Product` — matches legacy Core data shape, mirrors the same pattern on `InventoryItem`
+- **Build verified**: `tsc --noEmit` on both `packages/database` and `apps/api` → **zero errors** ✅
 
 ---
 
@@ -84,6 +87,9 @@
 - POS fully localized: LibSQL WASM, local repositories, SyncEngine v2, offline auth
 - Hardened seed with `updatedAt` stamps on all syncable tables
 - Verified sync pipeline end-to-end: `since=0` → 12 products, 26 mods, 27 inv, 3 users, 4 loyalty
+- Fixed pre-existing TS errors: `RecipeDefinition` fields now optional; `Product.currentStock` alias added
+- `tsc --noEmit` clean on `packages/database` and `apps/api`
+- Commits: `80e98e8` (Explosion Engine), `9509cf3` (schema type fixes)
 
 ### 2026-02-20 — Gemini
 - Phase 1 Core Foundation finalized
