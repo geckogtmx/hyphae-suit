@@ -8,12 +8,14 @@ import { Plus, Printer, XCircle, Recycle } from 'lucide-react';
 export function InventoryDashboard() {
     const { inventory, fetchInventory } = useInventoryStore();
     const [filter, setFilter] = useState<'ALL' | 'RAW' | 'PREP'>('ALL');
+    const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchInventory();
     }, [fetchInventory]);
 
     const filteredItems = inventory.filter((i: any) => filter === 'ALL' || i.type === filter);
+    const selectedItem = inventory.find((i: any) => i.id === selectedItemId);
 
     // Mock function to determine decay status (since mockData lacks dates)
     const getMockStatus = (id: string): { status: DecayStatus, days: number } => {
@@ -38,49 +40,83 @@ export function InventoryDashboard() {
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 overflow-y-auto pb-20 pr-2">
-                {filteredItems.map((item: any) => {
-                    const decay = getMockStatus(item.id);
-                    const isLowStock = (item.stockKitchen || 0) < (item.parLevel || 500); // Mock par check
-
-                    return (
-                        <Card key={item.id} className="bg-jet-700 border-jet-500 relative overflow-hidden group">
-                            <div className="flex justify-between items-start mb-4 relative z-10">
-                                <div>
-                                    <h3 className="text-xl font-bold text-white">{item.name}</h3>
-                                    <div className="text-gray-400 text-sm">{item.stockUnit} • ${item.costPerUnit}/{item.stockUnit}</div>
+            <div className="flex flex-1 gap-6 min-h-0 overflow-hidden">
+                {/* Left: Master List */}
+                <div className="w-1/2 flex flex-col bg-jet-900/30 rounded-2xl border border-jet-700 min-h-0">
+                    <div className="p-4 border-b border-jet-700 text-[10px] font-black uppercase text-gray-500 tracking-widest">
+                        Items Catalog ({filteredItems.length})
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                        {filteredItems.map((item: any) => {
+                            const isLowStock = (item.stockKitchen || 0) < (item.parLevel || 500);
+                            return (
+                                <div
+                                    key={item.id}
+                                    onClick={() => setSelectedItemId(item.id)}
+                                    className={`p-4 rounded-xl cursor-pointer transition-all flex items-center justify-between group
+                                        ${selectedItemId === item.id ? 'bg-teal-mid/20 border-teal-mid' : 'hover:bg-jet-700 border-transparent'} border
+                                    `}
+                                >
+                                    <div>
+                                        <div className="text-sm font-bold text-white">{item.name}</div>
+                                        <div className="text-[10px] text-gray-400 font-mono mt-1 uppercase">
+                                            $ {item.costPerUnit}/{item.stockUnit}
+                                        </div>
+                                    </div>
+                                    <div className={`text-xl font-black ${isLowStock ? 'text-red-500' : 'text-teal-bright'}`}>
+                                        {item.stockKitchen || 0}
+                                        <span className="text-[10px] text-gray-500 font-bold ml-1">{item.stockUnit}</span>
+                                    </div>
                                 </div>
-                                <VisualDecayIcon status={decay.status} daysRemaining={decay.days} />
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Right: Detail View */}
+                <div className="w-1/2 bg-jet-800/50 rounded-2xl border border-jet-700 flex flex-col">
+                    {selectedItem ? (
+                        <div className="flex-1 flex flex-col animate-in slide-in-from-right-4 duration-300">
+                            <div className="p-8 bg-gradient-to-br from-jet-800 to-ink-500 border-b border-jet-700 rounded-t-2xl relative overflow-hidden">
+                                <VisualDecayIcon status={getMockStatus(selectedItem.id).status} daysRemaining={getMockStatus(selectedItem.id).days} />
+                                <Badge variant="info" className="mb-4">{selectedItem.type}</Badge>
+                                <h2 className="text-4xl font-black text-white">{selectedItem.name}</h2>
+                                <div className="text-[10px] font-mono text-gray-500 mt-2">ID: {selectedItem.id}</div>
                             </div>
 
-                            <div className="flex justify-between items-end relative z-10">
-                                <div>
-                                    <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">In Stock</div>
-                                    <div className={`text-4xl font-black ${isLowStock ? 'text-red-500' : 'text-teal-bright'}`}>
-                                        {item.stockKitchen || 0}
+                            <div className="p-8 flex-1 overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-6 mb-8">
+                                    <div className="bg-jet-900 p-4 rounded-xl border border-jet-700">
+                                        <div className="text-[10px] uppercase font-bold text-gray-500 mb-1">Current Kitchen Stock</div>
+                                        <div className={`text-3xl font-black ${(selectedItem.stockKitchen || 0) < (selectedItem.parLevel || 500) ? 'text-red-500' : 'text-teal-bright'}`}>
+                                            {selectedItem.stockKitchen || 0} <span className="text-lg">{selectedItem.stockUnit}</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-jet-900 p-4 rounded-xl border border-jet-700">
+                                        <div className="text-[10px] uppercase font-bold text-gray-500 mb-1">Valuation (Cost)</div>
+                                        <div className="text-3xl font-black text-white">
+                                            ${((selectedItem.stockKitchen || 0) * selectedItem.costPerUnit).toFixed(2)}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button size="sm" variant="secondary"><Printer className="w-4 h-4" /></Button>
-                                    <Button size="sm" variant="danger"><XCircle className="w-4 h-4" /></Button>
-                                    <Button size="sm" variant="primary"><Recycle className="w-4 h-4" /></Button>
+                                <div className="space-y-4 border-t border-jet-700 pt-8 mt-auto">
+                                    <h3 className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Inventory Operations</h3>
+                                    <div className="flex gap-4">
+                                        <Button className="flex-1 flex gap-2"><Recycle className="w-4 h-4" /> Move to Waste</Button>
+                                        <Button variant="secondary" className="flex-1 flex gap-2"><Printer className="w-4 h-4" /> Print Labels</Button>
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Batch ID Overlay (Simulated) */}
-                            <div className="absolute top-0 right-0 p-1">
-                                <span className="text-[10px] font-mono text-gray-600">ID: {item.id.toUpperCase().slice(0, 8)}</span>
-                            </div>
-                        </Card>
-                    );
-                })}
-
-                {/* Add Item Card */}
-                <button className="border-2 border-dashed border-jet-500 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-teal-mid hover:border-teal-mid transition-colors min-h-[160px]">
-                    <Plus className="w-12 h-12 mb-2" />
-                    <span className="font-bold">Add Item / Receive</span>
-                </button>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center flex-col text-gray-500 opacity-50 p-6 text-center">
+                            <Recycle size={64} className="mb-4" />
+                            <h3 className="text-xl font-bold uppercase">Select an Item</h3>
+                            <p className="text-sm">View details and perform operations</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

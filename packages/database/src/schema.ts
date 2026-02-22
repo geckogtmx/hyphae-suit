@@ -124,7 +124,7 @@ export const products = sqliteTable('products', {
   packagingSku: text('packaging_sku'),
 
   // Linked Assembly Recipe (for auto-depletion)
-  recipeId: text('recipe_id').references(() => recipes.id),
+  recipeId: text('recipe_id').notNull().references(() => recipes.id),
   // Direct Inventory Link (Simple Product)
   inventoryItemId: text('inventory_item_id').references(() => inventoryItems.id),
 

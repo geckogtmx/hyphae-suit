@@ -279,6 +279,56 @@ export const RECIPES: RecipeDefinition[] = [
             { inventoryItemId: 'inv_carnitas_prep', quantity: 0.25, unit: 'lb' },
         ],
     },
+    {
+        id: 'rec_taco_carne_asada',
+        name: 'Taco Carne Asada Assembly',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_tortilla_corn', quantity: 1, unit: 'count' },
+            { inventoryItemId: 'inv_steak_skirt', quantity: 0.25, unit: 'lb' },
+        ],
+    },
+    {
+        id: 'rec_taco_veggie',
+        name: 'Taco Veggie Assembly',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_tortilla_corn', quantity: 1, unit: 'count' },
+            { inventoryItemId: 'inv_potatoes', quantity: 0.25, unit: 'lb' },
+        ],
+    },
+    {
+        id: 'rec_burrito_mission',
+        name: 'Mission Burrito Assembly',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_tortilla_flour', quantity: 1, unit: 'count' },
+            { inventoryItemId: 'inv_carnitas_prep', quantity: 0.5, unit: 'lb' },
+        ],
+    },
+    {
+        id: 'rec_burrito_cali',
+        name: 'Cali Burrito Assembly',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_tortilla_flour', quantity: 1, unit: 'count' },
+            { inventoryItemId: 'inv_steak_skirt', quantity: 0.5, unit: 'lb' },
+            { inventoryItemId: 'inv_fries_cut', quantity: 4, unit: 'oz' },
+        ],
+    },
+    {
+        id: 'rec_burrito_bowl',
+        name: 'Burrito Bowl Assembly',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_carnitas_prep', quantity: 0.5, unit: 'lb' },
+        ],
+    },
     // --- CORE RECIPES ---
     {
         id: 'recipe_compiler_burger',
@@ -300,6 +350,16 @@ export const RECIPES: RecipeDefinition[] = [
         components: [
             { inventoryItemId: 'inv_sweet_potato', quantity: 0.200, unit: 'kg' },
             { inventoryItemId: 'inv_fry_oil', quantity: 0.010, unit: 'liters' }
+        ]
+    },
+    {
+        id: 'recipe_recursive_onion',
+        name: 'Recursive Onion Assembly',
+        yieldQuantity: 1,
+        yieldUnit: 'count',
+        components: [
+            { inventoryItemId: 'inv_onion', quantity: 0.150, unit: 'kg' },
+            { inventoryItemId: 'inv_fry_oil', quantity: 0.015, unit: 'liters' }
         ]
     }
 ];
@@ -565,6 +625,7 @@ export const PRODUCTS: Product[] = [
         categoryId: 'tacos',
         requiresMods: true,
         packaging: { sku: 'SKU_BOAT_SMALL', volumePoints: 1, isMessy: true },
+        inventoryMetadata: { recipeId: 'rec_taco_carne_asada' },
         modifierGroups: [MOD_TORTILLA, MOD_SALSA],
     },
     {
@@ -584,6 +645,7 @@ export const PRODUCTS: Product[] = [
         categoryId: 'tacos',
         requiresMods: true,
         packaging: { sku: 'SKU_BOAT_SMALL', volumePoints: 1, isMessy: true },
+        inventoryMetadata: { recipeId: 'rec_taco_veggie' },
         modifierGroups: [MOD_TORTILLA, MOD_SALSA],
     },
 
@@ -595,6 +657,7 @@ export const PRODUCTS: Product[] = [
         categoryId: 'burritos',
         requiresMods: true,
         packaging: { sku: 'SKU_WRAPPER_XL', volumePoints: 3, isMessy: false },
+        inventoryMetadata: { recipeId: 'rec_burrito_mission' },
         modifierGroups: [MOD_SALSA],
     },
     {
@@ -604,6 +667,7 @@ export const PRODUCTS: Product[] = [
         categoryId: 'burritos',
         requiresMods: true,
         packaging: { sku: 'SKU_WRAPPER_XL', volumePoints: 3, isMessy: false },
+        inventoryMetadata: { recipeId: 'rec_burrito_cali' },
         modifierGroups: [MOD_SALSA],
     },
     {
@@ -613,6 +677,7 @@ export const PRODUCTS: Product[] = [
         categoryId: 'burritos',
         requiresMods: true,
         packaging: { sku: 'SKU_BOWL_LID', volumePoints: 3, isMessy: false },
+        inventoryMetadata: { recipeId: 'rec_burrito_bowl' },
         modifierGroups: [MOD_SALSA],
     },
 
@@ -642,6 +707,7 @@ export const PRODUCTS: Product[] = [
         requiresMods: true,
         currentStock: 50,
         metadata: { kitchenLabel: 'Rec Onion' },
+        inventoryMetadata: { recipeId: 'recipe_recursive_onion' },
         active: true,
         stationId: 'station_grill',
         timeMetadata: { cookTimeSeconds: 300, activePrepTimeSeconds: 60 },

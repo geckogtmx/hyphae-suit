@@ -1,41 +1,58 @@
 # 📝 Active Tasks (V2 Execution)
 
 > **Focus**: Phase 2 - Localizing the BOH (Prep Kitchen Helper)
-> **Status**: Not Started
-> **Last Updated**: 2026-02-20
+> **Status**: Phases 2.0–2.4 Complete ✅
+> **Last Updated**: 2026-02-22
 > **Blueprint**: `DEVELOPMENT_PLAN_V2.md`
 
 ---
 
+## 🎯 Phase 2.0: Database Strict Constraints & Safeguards
+*Goal: Enforce strict data integrity at the schema level to prevent orphaned items and broken pipelines.*
+
+- [x] **Schema Restrictions (`packages/database/src/schema.ts`)**:
+  - [x] Enforce `recipeId` as `.notNull()` on `products` table.
+  - [x] Ensure `modifierOptions` enforce proper linkage if applicable.
+- [x] **Zod Schema Validations (`@hyphae/schemas`)**:
+  - [x] Add `.superRefine` on Inventory Items so `RAW` items natively require a supplier.
+  - [x] Ensure `ProductSchema` strictly requires a `recipeId` during any UI input.
+
 ## 🎯 Phase 2.1: Supplier Reception (BOH)
 *Goal: Empower staff at the back door to receive deliveries (`inventoryItems` RAW) seamlessly.*
 
-- [ ] **Goods Reception UI (`apps/boh`)**:
-  - [ ] Build the interface to receive deliveries based on `suppliers` data synced from CORE.
-  - [ ] Allow logging of `quantityReceived` against expected `quantityOrdered`.
-- [ ] **Inventory Update Logic**:
-  - [ ] Ensure received items increment `stockKitchen` and log an `inventoryTransactions` of type `RECEIVE`.
+- [x] **Goods Reception UI (`apps/boh`)**:
+  - [x] Build the interface to receive deliveries based on `suppliers` data synced from CORE.
+  - [x] Allow logging of `quantityReceived` against expected `quantityOrdered`.
+- [x] **Inventory Update Logic**:
+  - [x] Ensure received items increment `stockKitchen` and log an `inventoryTransactions` of type `RECEIVE`.
 
 ## 🎯 Phase 2.2: Batch Prep UI (BOH)
 *Goal: Guide staff in turning RAW goods into PREP sub-products.*
 
-- [ ] **Batch Prep Interface**:
-  - [ ] Implement UI for selecting a BATCH recipe synced from CORE.
-  - [ ] Allow entering the `quantityProduced`.
-- [ ] **Yield & Depletion Logic**:
-  - [ ] Create function to deduct required RAW ingredients from `stockKitchen`.
-  - [ ] Increment the PREP item in `stockKitchen`.
-  - [ ] Log corresponding `inventoryTransactions` (`USAGE` and `PRODUCTION`).
+- [x] **Batch Prep Interface**:
+  - [x] Implement UI for selecting a BATCH recipe synced from CORE.
+  - [x] Allow entering the `quantityProduced`.
+- [x] **Yield & Depletion Logic**:
+  - [x] Create function to deduct required RAW ingredients from `stockKitchen`.
+  - [x] Increment the PREP item in `stockKitchen`.
+  - [x] Log corresponding `inventoryTransactions` (`USAGE` and `PRODUCTION`).
 
 ## 🎯 Phase 2.3: The Cart Exchange & Waste Logging (BOH)
 *Goal: Manage daily transfers and record spoilage.*
 
-- [ ] **Cart Exchange Workflow**:
-  - [ ] Implement "Load Cart" UI (moving `stockKitchen` to `stockStand`).
-  - [ ] Implement "Return Cart" UI (moving `stockStand` back to `stockKitchen`).
-- [ ] **Waste & Yield Logs**:
-  - [ ] Add ability to log spoilage/waste during the return phase.
-  - [ ] Capture actual yield vs. expected yield during BATCH prep.
+- [x] **Cart Exchange Workflow**:
+  - [x] Implement "Load Cart" UI (moving `stockKitchen` to `stockStand`).
+  - [x] Implement "Return Cart" UI (moving `stockStand` back to `stockKitchen`).
+- [x] **Waste & Yield Logs**:
+  - [x] Add ability to log spoilage/waste during the return phase.
+  - [x] Capture actual yield vs. expected yield during BATCH prep.
+
+## 🎯 Phase 2.4: BOH UI Refinement
+*Goal: Address user feedback on real-estate and flow.*
+
+- [x] **Inventory Dashboard Revamp**:
+  - [x] Convert `apps/boh/src/components/inventory/dashboard.tsx` to a Master-Detail layour (List on left, Details card on right).
+  - [x] Remove the "Add Item" button from this view (handled in Receive tab).
 
 ---
 

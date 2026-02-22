@@ -216,4 +216,41 @@ export class InventoryService {
             return { success: true };
         });
     }
+
+    /**
+     * Logs waste from Kitchen or Stand.
+     */
+    static async logWaste(itemId: string, quantity: number, source: 'KITCHEN' | 'STAND', note?: string) {
+        console.log(`[Inventory] Logging Waste - Item: ${itemId}, Qty: ${quantity}, Source: ${source}`);
+
+        return await db.transaction(async (tx) => {
+            const item = await tx.query.inventoryItems.findFirst({
+                where: eq(schema.inventoryItems.id, itemId)
+            });
+
+            if (!item) throw new Error('Item not found');
+
+            if (source === 'KITCHEN') {
+                await tx.update(schema.inventoryItems)
+                    .set({ stockKitchen: sql`${schema.inventoryItems.stockKitchen} - ${quantity}` })
+                    .where(eq(schema.inventoryItems.id, itemId));
+            } else {
+                await tx.update(schema.inventoryItems)
+                    .set({ stockStand: sql`${schema.inventoryItems.stockStand} - ${quantity}` })
+                    .where(eq(schema.inventoryItems.id, itemId));
+            }
+
+            await tx.insert(schema.inventoryTransactions).values({
+                id: `tx_waste_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                inventoryItemId: itemId,
+                type: 'WASTE',
+                quantity: -quantity,
+                reason: `Waste from ${source}: ${note || ''}`,
+                referenceId: `waste_${Date.now()}`,
+                timestamp: Date.now()
+            });
+
+            return { success: true };
+        });
+    }
 }

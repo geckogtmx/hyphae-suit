@@ -11,12 +11,16 @@ interface PrepStore {
     // Selection
     selectedTask: PrepTask | null; // Center zone
 
+    // Recipes
+    recipes: RecipeDefinition[];
+    fetchRecipes: () => Promise<void>;
+
     // Actions
     loadSchedule: () => void;
     selectTask: (task: PrepTask) => void;
     startTask: (taskId: string) => void;
     pauseTask: (taskId: string) => void;
-    completeTask: (taskId: string) => void;
+    completeTask: (taskId: string, actualYield?: number) => void;
     addTaskFromRecipe: (recipeId: string, quantity: number) => void;
 }
 
@@ -25,6 +29,21 @@ export const usePrepStore = create<PrepStore>((set) => ({
     activeTasks: [],
     passiveTasks: [],
     selectedTask: null,
+    recipes: [],
+
+    fetchRecipes: async () => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001/api'}/recipes`, {
+                headers: { 'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || '' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                set({ recipes: data });
+            }
+        } catch (err) {
+            console.error('Failed to fetch recipes', err);
+        }
+    },
 
     loadSchedule: () => {
         // Determine active vs passive based on recipe steps (simplified for now)
@@ -54,7 +73,7 @@ export const usePrepStore = create<PrepStore>((set) => ({
         console.log('Pause task', taskId);
     },
 
-    completeTask: async (taskId) => {
+    completeTask: async (taskId, actualYield) => {
         const state = usePrepStore.getState();
         const task = state.activeTasks.find(t => t.id === taskId);
 
@@ -69,7 +88,7 @@ export const usePrepStore = create<PrepStore>((set) => ({
                     },
                     body: JSON.stringify({
                         recipeId: task.recipeId,
-                        quantity: task.targetQuantity
+                        quantity: actualYield ?? task.targetQuantity
                     })
                 });
 

@@ -1152,6 +1152,9 @@ server.post('/api/inventory/item', async (request, reply) => {
     const item = request.body as any; // Todo: Zod
     try {
         const id = item.id || `inv_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const supplierId = item.preferredSupplierId && item.preferredSupplierId.trim() !== ''
+            ? item.preferredSupplierId
+            : null;
         await db.insert(schema.inventoryItems).values({
             id,
             name: item.name,
@@ -1160,7 +1163,7 @@ server.post('/api/inventory/item', async (request, reply) => {
             costPerUnit: item.costPerUnit || 0,
             stockKitchen: item.stockKitchen || 0,
             stockStand: item.stockStand || 0,
-            preferredSupplierId: item.preferredSupplierId || null
+            preferredSupplierId: supplierId
         });
         return { success: true, id };
     } catch (e) {
@@ -1173,14 +1176,26 @@ server.put('/api/inventory/item/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const item = request.body as any;
     try {
+        // Coerce empty string to null to avoid FK constraint violation
+        const supplierId = item.preferredSupplierId && item.preferredSupplierId.trim() !== ''
+            ? item.preferredSupplierId
+            : null;
+
+        const updatePayload: any = {
+            name: item.name,
+            type: item.type,
+            stockUnit: item.stockUnit,
+            costPerUnit: item.costPerUnit,
+            preferredSupplierId: supplierId
+        };
+
+        // Apply live stock adjustment if provided
+        if (item.stockKitchen !== undefined && item.stockKitchen !== null) {
+            updatePayload.stockKitchen = item.stockKitchen;
+        }
+
         await db.update(schema.inventoryItems)
-            .set({
-                name: item.name,
-                type: item.type,
-                stockUnit: item.stockUnit,
-                costPerUnit: item.costPerUnit,
-                preferredSupplierId: item.preferredSupplierId
-            })
+            .set(updatePayload)
             .where(eq(schema.inventoryItems.id, id));
         return { success: true };
     } catch (e) {
@@ -1239,6 +1254,20 @@ server.post('/api/inventory/transfer', async (request, reply) => {
     } catch (e: any) {
         request.log.error(e);
         reply.code(500).send({ error: e.message || 'Transfer failed' });
+    }
+});
+
+server.post('/api/inventory/waste', async (request, reply) => {
+    const { itemId, quantity, source, note } = request.body as { itemId: string; quantity: number; source: 'KITCHEN' | 'STAND'; note?: string };
+    try {
+        if (!itemId || !quantity || !source) {
+            return reply.code(400).send({ error: 'Missing itemId, quantity, or source' });
+        }
+        const result = await InventoryService.logWaste(itemId, quantity, source, note);
+        return result;
+    } catch (e: any) {
+        request.log.error(e);
+        reply.code(500).send({ error: e.message || 'Waste log failed' });
     }
 });
 

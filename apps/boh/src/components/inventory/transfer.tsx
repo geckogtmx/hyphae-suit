@@ -6,7 +6,8 @@ import type { InventoryItem } from '../../types';
 
 export function InventoryTransfer() {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
-    const [direction, setDirection] = useState<'EXIT' | 'INGRESS'>('EXIT');
+    const [direction, setDirection] = useState<'EXIT' | 'INGRESS' | 'WASTE'>('EXIT');
+    const [wasteSource, setWasteSource] = useState<'KITCHEN' | 'STAND'>('STAND');
     const [selectedItem, setSelectedItem] = useState<string>('');
     const [quantity, setQuantity] = useState<number>(0);
     const [note, setNote] = useState<string>('');
@@ -32,32 +33,35 @@ export function InventoryTransfer() {
         setLoading(true);
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/inventory/transfer`, {
+            const url = direction === 'WASTE'
+                ? `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/inventory/waste`
+                : `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/inventory/transfer`;
+
+            const payload = direction === 'WASTE'
+                ? { itemId: selectedItem, quantity, source: wasteSource, note }
+                : { itemId: selectedItem, quantity, direction, note };
+
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
                 },
-                body: JSON.stringify({
-                    itemId: selectedItem,
-                    quantity,
-                    direction,
-                    note
-                })
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
                 const err = await res.json();
-                alert(`Transfer Failed: ${err.error}`);
+                alert(`Action Failed: ${err.error}`);
                 return;
             }
 
-            alert('Transfer Successful');
+            alert(direction === 'WASTE' ? 'Waste logged successfully' : 'Transfer Successful');
             setQuantity(0);
             setNote('');
             fetchInventory(); // Refresh stock levels
         } catch (e) {
-            console.error('Transfer Error', e);
+            console.error('Action Error', e);
             alert('Network Error');
         } finally {
             setLoading(false);
@@ -65,7 +69,7 @@ export function InventoryTransfer() {
     };
 
     const item = inventory.find(i => i.id === selectedItem);
-    const maxStock = item ? (direction === 'EXIT' ? (item.stockKitchen || 0) : (item.stockStand || 0)) : 0;
+    const maxStock = item ? (direction === 'EXIT' ? (item.stockKitchen || 0) : direction === 'INGRESS' ? (item.stockStand || 0) : wasteSource === 'KITCHEN' ? (item.stockKitchen || 0) : (item.stockStand || 0)) : 0;
 
     return (
         <Card className="bg-ink-500 p-6 max-w-2xl mx-auto h-full flex flex-col">
@@ -84,21 +88,34 @@ export function InventoryTransfer() {
                     >
                         Stand <ArrowLeft size={16} /> Kitchen
                     </button>
+                    <button
+                        onClick={() => setDirection('WASTE')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors ${direction === 'WASTE' ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Report Waste
+                    </button>
                 </div>
             </header>
+
+            {direction === 'WASTE' && (
+                <div className="flex justify-center gap-4 mb-4">
+                    <Button variant={wasteSource === 'KITCHEN' ? 'primary' : 'outline'} size="sm" onClick={() => setWasteSource('KITCHEN')}>Waste from Kitchen</Button>
+                    <Button variant={wasteSource === 'STAND' ? 'primary' : 'outline'} size="sm" onClick={() => setWasteSource('STAND')}>Waste from Stand</Button>
+                </div>
+            )}
 
             <div className="flex-1 overflow-y-auto space-y-6">
                 {/* 1. Select Item */}
                 <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">Select Item</label>
-                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                    <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">
                         {inventory.map(i => (
                             <button
                                 key={i.id}
                                 onClick={() => setSelectedItem(i.id)}
                                 className={`flex justify-between items-center p-3 rounded-lg border text-left transition-all
                                     ${selectedItem === i.id
-                                        ? (direction === 'EXIT' ? 'bg-teal-500/10 border-teal-500 text-white' : 'bg-orange-500/10 border-orange-500 text-white')
+                                        ? (direction === 'EXIT' ? 'bg-teal-500/10 border-teal-500 text-white' : direction === 'INGRESS' ? 'bg-orange-500/10 border-orange-500 text-white' : 'bg-red-500/10 border-red-500 text-white')
                                         : 'bg-jet-700 border-jet-600 text-gray-300 hover:bg-jet-600'
                                     }`}
                             >
@@ -152,12 +169,12 @@ export function InventoryTransfer() {
                         </div>
 
                         <Button
-                            className="w-full py-4 text-lg font-bold"
-                            variant={direction === 'EXIT' ? 'primary' : 'secondary'}
+                            className={`w-full py-4 text-lg font-bold ${direction === 'WASTE' ? 'bg-red-600 hover:bg-red-700 text-white' : ''}`}
+                            variant={direction === 'EXIT' ? 'primary' : direction === 'INGRESS' ? 'secondary' : 'danger'}
                             onClick={handleTransfer}
                             disabled={loading || quantity <= 0 || quantity > maxStock}
                         >
-                            {loading ? 'Processing...' : (direction === 'EXIT' ? 'CONFIRM EXIT NOTE' : 'CONFIRM INGRESS NOTE')}
+                            {loading ? 'Processing...' : (direction === 'EXIT' ? 'CONFIRM EXIT NOTE' : direction === 'INGRESS' ? 'CONFIRM INGRESS NOTE' : 'LOG WASTE')}
                         </Button>
                     </div>
                 )}

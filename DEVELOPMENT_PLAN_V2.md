@@ -69,6 +69,7 @@ Currently, `apps/pos/src/services/SyncEngine.ts` is network-first, pushing `POST
 - **Step 1: Supplier & Order Hub.** Finalize the UI in CORE for managing `suppliers` and generating `supplyOrders` (Purchase Orders). This data is pushed down to BOH.
 - **Step 2: The Recipe Architect & Forecast Engine.** Complete the CORE UI for defining `recipes` (both BATCH for prep and ASSEMBLY for sales). Build the forecasting logic: inputting a target sales volume (e.g., 50 burgers/day for 3 days) automatically traverses the recipe hierarchy to generate the required RAW shopping list and the daily BATCH prep schedule.
 - **Step 3: Transfer Definitions.** Define the explicit "Load Cart" and "Return from Cart" transaction types in the database schema to support the BOH workflows.
+- **Step 4: Strict Database Safeguards.** Harden the Database Schema (`schema.ts`) and Zod Models (`@hyphae/schemas`) to mathematically prevent orphaned items. Establish rules like: RAW Inventory MUST have a `preferredSupplierId`, Products MUST have a related `recipeId` (Assembly), and Recipe components MUST link to valid Inventory IDs.
 
 ### Phase 2: Localizing the BOH (Prep Kitchen Helper)
 *Goal: Empower the prep kitchen to operate offline, turning RAW goods into PREP sub-products, driven by CORE's definitions.*

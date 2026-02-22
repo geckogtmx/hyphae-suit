@@ -14,32 +14,35 @@ export const InventoryView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-    const [transferItem, setTransferItem] = useState<InventoryItem | null>(null);
-    const [transferQty, setTransferQty] = useState<number>(1);
-    const [transferDir, setTransferDir] = useState<'EXIT' | 'INGRESS'>('EXIT');
-    const [isTransferring, setIsTransferring] = useState(false);
 
-    const fetchInventory = async () => {
+    const [suppliers, setSuppliers] = useState<any[]>([]);
+
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://127.0.0.1:3001/api/inventory', {
-                headers: {
-                    'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
-                }
-            });
-            if (res.ok) {
-                const data = await res.json();
+            const [invRes, supRes] = await Promise.all([
+                fetch('http://127.0.0.1:3001/api/inventory', {
+                    headers: { 'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || '' }
+                }),
+                ApiClient.getSuppliers()
+            ]);
+
+            if (invRes.ok) {
+                const data = await invRes.json();
                 setInventory(data);
             }
+            if (supRes) {
+                setSuppliers(supRes);
+            }
         } catch (error) {
-            console.error("Failed to fetch inventory:", error);
+            console.error("Failed to fetch data:", error);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchInventory();
+        fetchData();
     }, []);
 
     const handleSaveItem = async (item: any) => {
@@ -59,7 +62,7 @@ export const InventoryView = () => {
             });
 
             if (res.ok) {
-                fetchInventory();
+                fetchData();
             } else {
                 alert('Failed to save item');
             }
@@ -77,23 +80,9 @@ export const InventoryView = () => {
                     'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
                 }
             });
-            if (res.ok) fetchInventory();
+            if (res.ok) fetchData();
         } catch (err) {
             console.error(err);
-        }
-    };
-
-    const handleTransferSubmit = async () => {
-        if (!transferItem || transferQty <= 0) return;
-        setIsTransferring(true);
-        try {
-            await ApiClient.transferInventory(transferItem.id, transferQty, transferDir, 'Manual Terminal Transfer');
-            setTransferItem(null);
-            fetchInventory();
-        } catch (err) {
-            console.error('Transfer failed', err);
-        } finally {
-            setIsTransferring(false);
         }
     };
 
@@ -102,7 +91,7 @@ export const InventoryView = () => {
     );
 
     const getTotalValue = () => {
-        return inventory.reduce((acc, item) => acc + ((item.stockKitchen || 0) + (item.stockStand || 0)) * item.costPerUnit, 0);
+        return inventory.reduce((acc, item) => acc + (item.stockKitchen || 0) * item.costPerUnit, 0);
     };
 
     if (loading && inventory.length === 0) return <div className="p-8 text-white">Loading Inventory...</div>;
@@ -165,7 +154,6 @@ export const InventoryView = () => {
                                 <th className="p-4">Item Name</th>
                                 <th className="p-4">Type</th>
                                 <th className="p-4 text-center">Kitchen</th>
-                                <th className="p-4 text-center">Stand</th>
                                 <th className="p-4">Unit Cost</th>
                                 <th className="p-4">Total Val</th>
                                 <th className="p-4">Supplier</th>
@@ -175,8 +163,7 @@ export const InventoryView = () => {
                         <tbody className="divide-y divide-white/5">
                             {filteredInventory.map(item => {
                                 const kitchenStock = item.stockKitchen || 0;
-                                const standStock = item.stockStand || 0;
-                                const totalValue = (kitchenStock + standStock) * item.costPerUnit;
+                                const totalValue = kitchenStock * item.costPerUnit;
                                 return (
                                     <tr key={item.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="p-4 text-white font-medium">{item.name}</td>
@@ -191,9 +178,6 @@ export const InventoryView = () => {
                                         <td className="p-4 font-mono text-white text-center">
                                             {kitchenStock} <span className="text-gray-500 text-xs">{item.stockUnit}</span>
                                         </td>
-                                        <td className="p-4 font-mono text-white text-center">
-                                            {standStock} <span className="text-gray-500 text-xs">{item.stockUnit}</span>
-                                        </td>
                                         <td className="p-4 font-mono text-gray-300">
                                             ${item.costPerUnit.toFixed(2)}
                                         </td>
@@ -201,27 +185,16 @@ export const InventoryView = () => {
                                             ${totalValue.toFixed(2)}
                                         </td>
                                         <td className="p-4 text-xs text-gray-400">
-                                            {item.supplier ? (
-                                                <span className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer">
-                                                    <Truck size={12} /> {item.supplier.name}
+                                            {item.preferredSupplierId ? (
+                                                <span className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer border border-white/5 rounded px-2 py-1 bg-white/[0.02]">
+                                                    <Truck size={12} /> {item.supplier?.name || suppliers.find(s => s.id === item.preferredSupplierId)?.name || 'Unknown'}
                                                 </span>
                                             ) : (
-                                                <span className="opacity-50">-</span>
+                                                <span className="opacity-50 italic">Ad-Hoc</span>
                                             )}
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => {
-                                                        setTransferItem(item);
-                                                        setTransferQty(1);
-                                                        setTransferDir('EXIT');
-                                                    }}
-                                                    className="p-2 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-lg text-gray-500 transition-colors"
-                                                    title="Transfer Stock"
-                                                >
-                                                    <ArrowRightLeft size={14} />
-                                                </button>
                                                 <button
                                                     onClick={() => {
                                                         setEditingItem(item);
@@ -252,82 +225,12 @@ export const InventoryView = () => {
             {isBuilderOpen && (
                 <InventoryItemBuilder
                     initialItem={editingItem || undefined}
+                    suppliers={suppliers}
                     onSave={handleSaveItem}
                     onClose={() => setIsBuilderOpen(false)}
                 />
             )}
 
-            {/* Transfer Modal */}
-            {transferItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-neutral-900 border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
-                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
-                            <h3 className="font-bold text-white flex items-center gap-2">
-                                <ArrowRightLeft className="text-emerald-400" size={18} /> Internal Transfer
-                            </h3>
-                        </div>
-                        <div className="p-6 space-y-6 bg-black/20">
-                            <div>
-                                <label className="block text-xs font-mono text-gray-500 mb-2 uppercase">Route</label>
-                                <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                                    <button
-                                        onClick={() => setTransferDir('EXIT')}
-                                        className={`flex-1 py-3 text-xs font-bold font-mono transition-colors rounded-lg flex items-center justify-center gap-2 ${transferDir === 'EXIT' ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)]' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        BOH <ArrowRightLeft size={12} /> STAND
-                                    </button>
-                                    <button
-                                        onClick={() => setTransferDir('INGRESS')}
-                                        className={`flex-1 py-3 text-xs font-bold font-mono transition-colors rounded-lg flex items-center justify-center gap-2 ${transferDir === 'INGRESS' ? 'bg-white/10 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)]' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        STAND <ArrowRightLeft size={12} /> BOH
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-mono text-gray-500 mb-2 uppercase">Item Definition</label>
-                                <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center justify-between">
-                                    <span className="font-bold text-gray-200">{transferItem.name}</span>
-                                    <span className="text-xs bg-black/50 px-2 py-1 rounded text-gray-400 font-mono">
-                                        {transferDir === 'EXIT' ? transferItem.stockKitchen : transferItem.stockStand} {transferItem.stockUnit} AVAIL
-                                    </span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-mono text-gray-500 mb-2 uppercase">Transfer Quantity</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="0.1"
-                                        step="0.1"
-                                        value={transferQty}
-                                        onChange={(e) => setTransferQty(parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-mono focus:border-brand outline-none"
-                                    />
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">
-                                        {transferItem.stockUnit}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="p-6 border-t border-white/10 bg-black/40 flex justify-end gap-3">
-                            <button
-                                onClick={() => setTransferItem(null)}
-                                className="px-6 py-2.5 rounded-xl text-gray-400 font-bold text-sm hover:text-white transition-colors"
-                            >
-                                CANCEL
-                            </button>
-                            <button
-                                onClick={handleTransferSubmit}
-                                disabled={isTransferring || transferQty <= 0 || (transferDir === 'EXIT' ? (transferItem.stockKitchen || 0) < transferQty : (transferItem.stockStand || 0) < transferQty)}
-                                className="px-8 py-2.5 bg-brand text-black font-black text-sm rounded-xl tracking-wide hover:bg-brand/90 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(132,204,22,0.2)] disabled:opacity-50 disabled:shadow-none min-w-[160px]"
-                            >
-                                {isTransferring ? 'ROUTING...' : 'AUTHORIZE'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

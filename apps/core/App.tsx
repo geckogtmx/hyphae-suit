@@ -109,16 +109,19 @@ const NavigationHeader = ({
 
    // ... other code ...
 
-   const items = [
+   const mainItems = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dash' },
       { id: 'intelligence', icon: Brain, label: 'AI Hub' },
       { id: 'finance', icon: Scale, label: 'Finance' },
-      { id: 'products', icon: UtensilsCrossed, label: 'Product Config' },
-      { id: 'kitchen', icon: ChefHat, label: 'Recipes' }, // New
-      { id: 'inventory', icon: Package, label: 'Stock' },
-      { id: 'suppliers', icon: Truck, label: 'Supply Chain' }, // New
-      { id: 'forecast', icon: TrendingUp, label: 'Forecast Engine' },
+      { id: 'forecast', icon: TrendingUp, label: 'Forecast' },
       { id: 'devices', icon: Server, label: 'Fleet' },
+   ];
+
+   const pipelineItems = [
+      { id: 'suppliers', icon: Truck, label: 'Supply Chain' },
+      { id: 'inventory', icon: Package, label: 'Stock' },
+      { id: 'kitchen', icon: ChefHat, label: 'Recipes' },
+      { id: 'products', icon: UtensilsCrossed, label: 'Catalog' },
    ];
 
    return (
@@ -135,28 +138,56 @@ const NavigationHeader = ({
          </div>
 
          {/* Center: Navigation Rail */}
-         <nav className="flex items-center gap-1">
-            {items.map((item) => {
-               const isActive = activeView === item.id;
-               return (
-                  <button
-                     key={item.id}
-                     onClick={() => setView(item.id)}
-                     className={`relative flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 group ${isActive
-                        ? 'bg-white/10 text-brand border border-white/10 shadow-[0_0_15px_rgba(132,204,22,0.1)]'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                        }`}
-                  >
-                     <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} />
-                     <span className={`text-xs font-bold tracking-wide transition-all ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                        {item.label}
-                     </span>
-                     {isActive && (
-                        <div className="absolute -bottom-[21px] left-1/2 -translate-x-1/2 w-1 h-1 bg-brand rounded-full shadow-[0_0_10px_#84cc16]"></div>
-                     )}
-                  </button>
-               );
-            })}
+         <nav className="flex items-center gap-6">
+            <div className="flex items-center gap-1">
+               {mainItems.map((item) => {
+                  const isActive = activeView === item.id;
+                  return (
+                     <button
+                        key={item.id}
+                        onClick={() => setView(item.id)}
+                        className={`relative flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 group ${isActive
+                           ? 'bg-white/10 text-brand border border-white/10 shadow-[0_0_15px_rgba(132,204,22,0.1)]'
+                           : 'text-gray-400 hover:text-white hover:bg-white/5'
+                           }`}
+                     >
+                        <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                        <span className={`text-xs font-bold tracking-wide transition-all ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                           {item.label}
+                        </span>
+                        {isActive && (
+                           <div className="absolute -bottom-[21px] left-1/2 -translate-x-1/2 w-1 h-1 bg-brand rounded-full shadow-[0_0_10px_#84cc16]"></div>
+                        )}
+                     </button>
+                  );
+               })}
+            </div>
+
+            {/* Separator */}
+            <div className="w-[1px] h-6 bg-white/10 rounded-full" />
+
+            {/* Golden Pipeline Block */}
+            <div className="flex items-center gap-1 bg-white/[0.02] p-1 rounded-full border border-white/5 relative overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 pointer-events-none" />
+               {pipelineItems.map((item) => {
+                  const isActive = activeView === item.id;
+                  return (
+                     <button
+                        key={item.id}
+                        onClick={() => setView(item.id)}
+                        className={`relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full transition-all duration-300 group ${isActive
+                           ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                           : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                           }`}
+                     >
+                        <item.icon size={14} strokeWidth={isActive ? 2.5 : 2} />
+                        <span className={`text-xs font-bold tracking-wide transition-all ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                           {item.label}
+                        </span>
+                     </button>
+                  );
+               })}
+            </div>
          </nav>
 
          {/* Right: System Status */}

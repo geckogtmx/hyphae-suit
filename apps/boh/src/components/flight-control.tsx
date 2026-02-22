@@ -6,13 +6,19 @@ import { Timer } from './status';
 import { BakingView } from './engines/BakingView';
 import { SauceView } from './engines/SauceView';
 import { PrepDashboard } from './PrepDashboard';
-import { mockRecipes } from '../lib/mockData';
 
 export function FlightControl() {
-    const { activeTasks, passiveTasks, selectedTask } = usePrepStore();
+    const { activeTasks, passiveTasks, selectedTask, recipes, fetchRecipes } = usePrepStore();
     const [activeZone, setActiveZone] = useState('focus'); // focus vs monitor
+    const [showYieldModal, setShowYieldModal] = useState(false);
+    const [actYield, setActYield] = useState(1);
 
-    const recipe = selectedTask ? mockRecipes.find(r => r.id === selectedTask.recipeId) : null;
+    // Optional: fetch recipes if not loaded yet
+    if (recipes.length === 0) {
+        fetchRecipes();
+    }
+
+    const recipe = selectedTask ? recipes.find(r => r.id === selectedTask.recipeId) : null;
 
     if (!selectedTask) {
         return (
@@ -64,12 +70,44 @@ export function FlightControl() {
                         variant="primary"
                         size="xl"
                         className="h-20 text-2xl font-bold bg-teal-deep hover:bg-teal-mid"
-                        onClick={() => selectedTask && usePrepStore.getState().completeTask(selectedTask.id)}
+                        onClick={() => {
+                            setActYield(recipe?.yieldQuantity || selectedTask.targetQuantity);
+                            setShowYieldModal(true);
+                        }}
                     >
                         DONE <ArrowRight className="ml-3 w-8 h-8" />
                     </Button>
                 </footer>
             </section>
+
+            {/* YIELD MODAL */}
+            {showYieldModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                    <div className="bg-jet-600 p-8 rounded-2xl w-[400px] shadow-2xl border border-jet-500 flex flex-col items-center">
+                        <h3 className="text-2xl font-black text-white mb-2 uppercase">Log Batch Yield</h3>
+                        <p className="text-gray-400 text-center mb-6 text-sm">Target yield was <span className="font-bold text-white">{recipe?.yieldQuantity || selectedTask.targetQuantity} {recipe?.yieldUnit || 'units'}</span>. Enter actual yield from this batch.</p>
+
+                        <div className="flex items-center gap-4 mb-8">
+                            <button onClick={() => setActYield(v => Math.max(0, v - 1))} className="w-12 h-12 rounded-lg bg-jet-700 hover:bg-jet-500 text-white font-black text-2xl flex items-center justify-center">-</button>
+                            <input
+                                type="number"
+                                value={actYield}
+                                onChange={(e) => setActYield(Number(e.target.value) || 0)}
+                                className="w-24 bg-jet-800 border-2 border-teal-mid rounded-xl p-4 text-center font-mono font-black text-3xl text-teal-bright outline-none"
+                            />
+                            <button onClick={() => setActYield(v => v + 1)} className="w-12 h-12 rounded-lg bg-jet-700 hover:bg-jet-500 text-white font-black text-2xl flex items-center justify-center">+</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 w-full">
+                            <Button variant="secondary" onClick={() => setShowYieldModal(false)}>Cancel</Button>
+                            <Button variant="primary" onClick={() => {
+                                setShowYieldModal(false);
+                                if (selectedTask) usePrepStore.getState().completeTask(selectedTask.id, actYield);
+                            }}>Confirm Yield</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* RIGHT: Monitor Zone (30%) */}
             <aside className="flex flex-col gap-4">

@@ -4,12 +4,14 @@ import type { InventoryItem } from '../types/schema';
 
 interface InventoryItemBuilderProps {
     initialItem?: Partial<InventoryItem>;
+    suppliers?: any[];
     onSave: (item: any) => Promise<void>;
     onClose: () => void;
 }
 
 export const InventoryItemBuilder: React.FC<InventoryItemBuilderProps> = ({
     initialItem,
+    suppliers = [],
     onSave,
     onClose
 }) => {
@@ -21,8 +23,7 @@ export const InventoryItemBuilder: React.FC<InventoryItemBuilderProps> = ({
         costPerUnit: initialItem?.costPerUnit || 0,
         preferredSupplierId: initialItem?.preferredSupplierId || '',
         // Initial stock (only for creation, optional)
-        stockKitchen: initialItem?.stockKitchen || 0,
-        stockStand: initialItem?.stockStand || 0
+        stockKitchen: initialItem?.stockKitchen || 0
     });
 
     const [isSaving, setIsSaving] = useState(false);
@@ -108,11 +109,25 @@ export const InventoryItemBuilder: React.FC<InventoryItemBuilderProps> = ({
                             <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Stock Unit</label>
                             <input
                                 type="text"
+                                list="stock-units"
                                 value={item.stockUnit}
                                 onChange={e => setItem({ ...item, stockUnit: e.target.value })}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-all text-xs font-mono"
                                 placeholder="count, kg, lb..."
                             />
+                            <datalist id="stock-units">
+                                <option value="kg" />
+                                <option value="g" />
+                                <option value="lb" />
+                                <option value="oz" />
+                                <option value="L" />
+                                <option value="ml" />
+                                <option value="count" />
+                                <option value="box" />
+                                <option value="arpilla" />
+                                <option value="sack" />
+                                <option value="crate" />
+                            </datalist>
                         </div>
                     </div>
 
@@ -131,47 +146,37 @@ export const InventoryItemBuilder: React.FC<InventoryItemBuilderProps> = ({
                             </div>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Preferred Supplier ID</label>
+                            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Preferred Supplier</label>
                             <div className="relative">
                                 <Truck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-                                <input
-                                    type="text"
+                                <select
                                     value={item.preferredSupplierId}
                                     onChange={e => setItem({ ...item, preferredSupplierId: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-4 py-3 text-white focus:border-blue-500 outline-none transition-all text-xs"
-                                    placeholder="Optional"
-                                />
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-4 py-3 text-white focus:border-blue-500 outline-none transition-all text-xs appearance-none"
+                                >
+                                    <option value="">None (Ad-Hoc)</option>
+                                    {suppliers.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     </div>
 
-                    {!item.id && (
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                            <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2">
-                                <AlertCircle size={14} className="text-yellow-500" /> Initial Stock Seed (Optional)
-                            </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[9px] text-gray-500 uppercase mb-1">Kitchen Stock</label>
-                                    <input
-                                        type="number"
-                                        value={item.stockKitchen}
-                                        onChange={e => setItem({ ...item, stockKitchen: parseFloat(e.target.value) })}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none text-xs font-mono"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[9px] text-gray-500 uppercase mb-1">Stand Stock</label>
-                                    <input
-                                        type="number"
-                                        value={item.stockStand}
-                                        onChange={e => setItem({ ...item, stockStand: parseFloat(e.target.value) })}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none text-xs font-mono"
-                                    />
-                                </div>
-                            </div>
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                        <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2">
+                            <AlertCircle size={14} className="text-yellow-500" /> {item.id ? 'Live Stock Adjustment' : 'Initial Stock Seed (Optional)'}
+                        </h3>
+                        <div>
+                            <label className="block text-[9px] text-gray-500 uppercase mb-1">Kitchen Stock</label>
+                            <input
+                                type="number"
+                                value={item.stockKitchen}
+                                onChange={e => setItem({ ...item, stockKitchen: parseFloat(e.target.value) })}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none text-xs font-mono"
+                            />
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>
