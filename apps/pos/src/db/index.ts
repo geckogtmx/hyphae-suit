@@ -1,9 +1,11 @@
-
-
 import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { createClient } from '@libsql/client/web'; // Use web client for browser
 import { schema } from '@hyphae/database';
 
-const client = createClient({ url: 'file:sqlite.db' });
-export const db = drizzle(client, { schema });
+// In a browser environment, we want to target a local SQLite file (persistable via OPFS)
+// If in development/non-compatible environment, it might fallback to in-memory
+const client = createClient({
+    url: 'file:hyphae_pos.db'
+});
 
+export const db = drizzle(client, { schema });

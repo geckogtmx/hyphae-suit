@@ -49,6 +49,7 @@ export interface MenuItem extends Product {
 
 export interface OrderItem extends Product {
   uniqueId: string;
+  productId: string; // Relational link
   selectedModifiers: SelectedModifier[];
   items?: OrderItem[]; // For sub-items / combos if needed
   quantity?: number;
@@ -56,6 +57,7 @@ export interface OrderItem extends Product {
   finalPrice: number;
   originalPrice?: number; // Track pre-discount price
   isDiscounted?: boolean;
+  modifiers?: string; // JSON snapshot for relational recovery
 }
 
 export interface Customer {
@@ -71,39 +73,44 @@ export interface Customer {
 
 export type OrderStatus = 'Pending' | 'Kitchen' | 'Ready' | 'Completed';
 export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid' | 'Refunded';
-export type PaymentMethod = 'Cash' | 'Clip' | 'Transfer' | 'Split';
+export type PaymentMethod = 'Cash' | 'Clip' | 'Transfer' | 'Split' | 'CASH' | 'CARD';
+
+export interface PaymentDetails {
+  method: PaymentMethod | 'CASH' | 'CARD'; // Normalize
+  amount: number;
+  transactionId?: string;
+  timestamp?: number;
+}
 
 export interface SavedOrder {
   id: string;
-  table: string; // Mock placeholder
-  time: string; // Human readable time string
+  table?: string;
+  time?: string;
 
   // Context Metadata (Who, Where, When)
   systemInfo?: SystemInfo;
 
   // Timestamps for lifecycle tracking
   createdAt: number;
-  cookingStartedAt?: number;
-  readyAt?: number;
   completedAt?: number;
+  syncedAt?: number; // V2: Track when pushed to CORE
 
   items: OrderItem[];
   subtotal: number;
   tax: number;
   total: number;
-  amountPaid: number;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   orderType: OrderType;
+
+  payment?: PaymentDetails; // V2: Relational payment
+  loyaltyProfileId?: string; // V2: Link by ID
+
+  // Legacy mappings (for backward compatibility if needed)
+  amountPaid?: number;
   confirmationNumber?: string;
   tenderedAmount?: number;
   tipAmount?: number;
-  isLoyalty?: boolean;
-  loyaltySnapshot?: {
-    tierName: string;
-    tierColor: string;
-    pointsEarned: number;
-  };
 }
 
 export interface OrderState {

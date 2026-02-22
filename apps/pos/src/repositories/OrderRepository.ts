@@ -1,115 +1,162 @@
 /**
  * @link e:\git\hyphae-pos\src\repositories\OrderRepository.ts
  * @author Hyphae POS Team
- * @description Drizzle implementation of the Order Repository.
- * @version 1.0.0
- * @last-updated 2026-01-20
+ * @description Relational Drizzle implementation of the Order Repository.
+ * @version 2.0.0
+ * @last-updated 2026-02-22
  */
 
 import { db } from '../db';
-import { orders } from '@hyphae/database';
-import { SavedOrder } from '../types';
+import { schema } from '@hyphae/database';
+import { SavedOrder, OrderItem, PaymentDetails } from '../types';
 import { IOrderRepository } from './interfaces';
-import { eq, desc, ne } from 'drizzle-orm';
+import { eq, desc, ne, and, isNull } from 'drizzle-orm';
 
 export class OrderRepository implements IOrderRepository {
-  private mapToOrder(row: any): SavedOrder {
-    return {
-      id: row.id,
-      table: row.table,
-      time: row.time,
-      systemInfo: {
-        storeId: row.storeId,
-        terminalId: row.terminalId,
-        staffId: row.staffId,
-      },
-      createdAt: row.createdAt,
-      cookingStartedAt: row.cookingStartedAt || undefined,
-      readyAt: row.readyAt || undefined,
-      completedAt: row.completedAt || undefined,
-      items: JSON.parse(row.items),
-      subtotal: row.subtotal,
-      tax: row.tax,
-      total: row.total,
-      amountPaid: row.amountPaid,
-      status: row.status as any,
-      paymentStatus: row.paymentStatus as any,
-      orderType: row.orderType as any,
-      confirmationNumber: row.confirmationNumber || undefined,
-      tenderedAmount: row.tenderedAmount || undefined,
-      tipAmount: row.tipAmount || undefined,
-      isLoyalty: row.isLoyalty || undefined,
-      loyaltySnapshot: row.loyaltySnapshot ? JSON.parse(row.loyaltySnapshot) : undefined,
-    };
-  }
 
-  private mapToRow(order: SavedOrder) {
+  private async mapToOrder(orderRow: any): Promise<SavedOrder> {
+    // Fetch items and payments for this order
+    const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderRow.id));
+    const payments = await db.select().from(schema.payments).where(eq(schema.payments.orderId, orderRow.id));
+
     return {
-      id: order.id,
-      table: order.table,
-      time: order.time,
-      storeId: order.systemInfo?.storeId || 'unknown',
-      terminalId: order.systemInfo?.terminalId || 'unknown',
-      staffId: order.systemInfo?.staffId || 'unknown',
-      createdAt: order.createdAt,
-      cookingStartedAt: order.cookingStartedAt || null,
-      readyAt: order.readyAt || null,
-      completedAt: order.completedAt || null,
-      updatedAt: Date.now(),
-      items: JSON.stringify(order.items),
-      subtotal: order.subtotal,
-      tax: order.tax,
-      total: order.total,
-      amountPaid: order.amountPaid,
-      status: order.status,
-      paymentStatus: order.paymentStatus,
-      orderType: order.orderType,
-      confirmationNumber: order.confirmationNumber || null,
-      tenderedAmount: order.tenderedAmount || null,
-      tipAmount: order.tipAmount || null,
-      isLoyalty: order.isLoyalty || false,
-      loyaltySnapshot: order.loyaltySnapshot ? JSON.stringify(order.loyaltySnapshot) : null,
+      id: orderRow.id,
+      systemInfo: {
+        storeId: orderRow.storeId,
+        terminalId: orderRow.terminalId,
+        staffId: orderRow.staffId,
+      },
+      createdAt: orderRow.createdAt,
+      completedAt: orderRow.completedAt || undefined,
+      items: items.map(i => ({
+        id: i.productId,
+        productId: i.productId,
+        uniqueId: i.id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity || 1,
+        selectedModifiers: i.modifiers ? JSON.parse(i.modifiers) : [],
+        finalPrice: (i.price || 0) * (i.quantity || 1),
+        categoryId: 'unknown',
+        requiresMods: false,
+        isActive: true
+      }) as any),
+      subtotal: orderRow.subtotal,
+      tax: orderRow.tax,
+      total: orderRow.total,
+      status: orderRow.status as any,
+      paymentStatus: orderRow.paymentStatus as any,
+      orderType: orderRow.orderType as any,
+      payment: payments[0] ? {
+        method: payments[0].method as any,
+        amount: payments[0].amount,
+        transactionId: payments[0].transactionId || undefined
+      } : { method: 'CASH', amount: orderRow.total },
+      loyaltyProfileId: orderRow.loyaltyProfileId || undefined,
+      syncedAt: orderRow.syncedAt || undefined
     };
   }
 
   async getActiveOrders(): Promise<SavedOrder[]> {
     const rows = await db
       .select()
-      .from(orders)
-      .where(ne(orders.status, 'Completed'))
-      .orderBy(desc(orders.createdAt));
-    return rows.map((row) => this.mapToOrder(row));
+      .from(schema.orders)
+      .where(ne(schema.orders.status, 'Completed'))
+      .orderBy(desc(schema.orders.createdAt));
+
+    return Promise.all(rows.map((row) => this.mapToOrder(row)));
   }
 
   async getCompletedOrders(): Promise<SavedOrder[]> {
     const rows = await db
       .select()
-      .from(orders)
-      .where(eq(orders.status, 'Completed'))
-      .orderBy(desc(orders.createdAt));
-    return rows.map((row) => this.mapToOrder(row));
+      .from(schema.orders)
+      .where(eq(schema.orders.status, 'Completed'))
+      .orderBy(desc(schema.orders.createdAt));
+
+    return Promise.all(rows.map((row) => this.mapToOrder(row)));
+  }
+
+  async getUnsyncedOrders(): Promise<SavedOrder[]> {
+    const rows = await db
+      .select()
+      .from(schema.orders)
+      .where(isNull(schema.orders.syncedAt))
+      .orderBy(schema.orders.createdAt);
+
+    return Promise.all(rows.map(row => this.mapToOrder(row)));
   }
 
   async saveOrder(order: SavedOrder): Promise<void> {
-    await db
-      .insert(orders)
-      .values(this.mapToRow(order))
-      .onConflictDoUpdate({
-        target: orders.id,
-        set: this.mapToRow(order),
+    await db.transaction(async (tx) => {
+      // 1. Upsert Order
+      await tx.insert(schema.orders).values({
+        id: order.id,
+        storeId: order.systemInfo?.storeId || 'default',
+        terminalId: order.systemInfo?.terminalId || 'default',
+        staffId: order.systemInfo?.staffId,
+        loyaltyProfileId: order.loyaltyProfileId,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        orderType: order.orderType,
+        subtotal: order.subtotal,
+        tax: order.tax,
+        total: order.total,
+        createdAt: order.createdAt,
+        completedAt: order.completedAt,
+        syncedAt: order.syncedAt
+      }).onConflictDoUpdate({
+        target: schema.orders.id,
+        set: {
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          completedAt: order.completedAt,
+          syncedAt: order.syncedAt
+        }
       });
+
+      // 2. Clear and Insert Items (Simplified re-sync)
+      await tx.delete(schema.orderItems).where(eq(schema.orderItems.orderId, order.id));
+      for (const item of order.items) {
+        await tx.insert(schema.orderItems).values({
+          id: `oi_${order.id}_${item.productId}`,
+          orderId: order.id,
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          modifiers: item.modifiers ? JSON.stringify(item.modifiers) : null
+        });
+      }
+
+      // 3. Upsert Payment
+      if (order.payment) {
+        await tx.insert(schema.payments).values({
+          id: `pay_${order.id}`,
+          orderId: order.id,
+          method: order.payment.method,
+          amount: order.payment.amount,
+          status: 'COMPLETED',
+          transactionId: order.payment.transactionId,
+          timestamp: Date.now()
+        }).onConflictDoNothing();
+      }
+    });
+  }
+
+  async setSynced(orderId: string): Promise<void> {
+    await db.update(schema.orders)
+      .set({ syncedAt: Date.now() })
+      .where(eq(schema.orders.id, orderId));
   }
 
   async updateOrderStatus(orderId: string, status: string): Promise<void> {
     await db
-      .update(orders)
+      .update(schema.orders)
       .set({
         status,
-        updatedAt: Date.now(),
-        cookingStartedAt: status === 'Kitchen' ? Date.now() : undefined,
-        readyAt: status === 'Ready' ? Date.now() : undefined,
         completedAt: status === 'Completed' ? Date.now() : undefined,
       } as any)
-      .where(eq(orders.id, orderId));
+      .where(eq(schema.orders.id, orderId));
   }
 }

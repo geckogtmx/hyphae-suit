@@ -157,10 +157,42 @@ server.setErrorHandler((error, request, reply) => {
     });
 });
 
-// --- Routes ---
+// --- SYNC ENGINE ROUTES ---
+server.get('/api/sync/pull', async (request, reply) => {
+    const { since } = request.query as { since?: string };
+    const sinceTimestamp = since ? parseInt(since) : 0;
 
-server.get('/health', async () => {
-    return { status: 'ok', service: 'hyphae-api' };
+    try {
+        // Fetch all changes since the last sync
+        const [
+            products,
+            categories,
+            modifierOptions,
+            inventoryItems,
+            users,
+            loyaltyProfiles
+        ] = await Promise.all([
+            db.select().from(schema.products).where(sql`${schema.products.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.categories).where(sql`${schema.categories.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.modifierOptions).where(sql`${schema.modifierOptions.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.inventoryItems).where(sql`${schema.inventoryItems.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.users).where(sql`${schema.users.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.loyaltyProfiles).where(sql`${schema.loyaltyProfiles.updatedAt} > ${sinceTimestamp}`)
+        ]);
+
+        return {
+            timestamp: Date.now(),
+            products,
+            categories,
+            modifierOptions,
+            inventoryItems,
+            users,
+            loyaltyProfiles
+        };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: "Sync Pull Failed" });
+    }
 });
 
 // --- DATA ACCESS ROUTES ---
@@ -207,7 +239,8 @@ server.post('/api/suppliers', async (request, reply) => {
             email: payload.email || null,
             phone: payload.phone || null,
             category: payload.category || 'General',
-            leadTimeDays: payload.leadTimeDays || 0
+            leadTimeDays: payload.leadTimeDays || 0,
+            updatedAt: Date.now()
         });
         return { success: true, id };
     } catch (e) {
@@ -227,7 +260,8 @@ server.put('/api/suppliers/:id', async (request, reply) => {
                 email: payload.email,
                 phone: payload.phone,
                 category: payload.category,
-                leadTimeDays: payload.leadTimeDays
+                leadTimeDays: payload.leadTimeDays,
+                updatedAt: Date.now()
             })
             .where(eq(schema.suppliers.id, id));
         return { success: true };
@@ -279,7 +313,8 @@ server.post('/api/supply-orders', async (request, reply) => {
                 supplierId: payload.supplierId,
                 status: payload.status || 'DRAFT',
                 placedAt: payload.status !== 'DRAFT' ? Date.now() : null,
-                totalCost: payload.totalCost || 0
+                totalCost: payload.totalCost || 0,
+                updatedAt: Date.now()
             });
             if (payload.items && payload.items.length > 0) {
                 await tx.insert(schema.supplyOrderItems).values(
@@ -313,7 +348,8 @@ server.put('/api/supply-orders/:id', async (request, reply) => {
                     status: payload.status,
                     totalCost: payload.totalCost,
                     placedAt: payload.status === 'PLACED' && currentOrder?.status !== 'PLACED' ? Date.now() : undefined,
-                    receivedAt: payload.status === 'RECEIVED' && currentOrder?.status !== 'RECEIVED' ? Date.now() : undefined
+                    receivedAt: payload.status === 'RECEIVED' && currentOrder?.status !== 'RECEIVED' ? Date.now() : undefined,
+                    updatedAt: Date.now()
                 })
                 .where(eq(schema.supplyOrders.id, id));
 
@@ -491,26 +527,32 @@ server.post('/api/order/checkout', async (request, reply) => {
 
         // 1. Transactional Insert (Drizzle doesn't support nested inserts well with SQLite in one go, so we use manual transaction)
         await db.transaction(async (tx) => {
-            // A. Create Order
+            // A. Upsert Order (idempotent — safe to replay if POS retries sync)
             await tx.insert(schema.orders).values({
                 id: payload.id,
                 storeId: payload.storeId || 'default-store',
                 terminalId: payload.terminalId || 'pos-1',
                 staffId: payload.staffId || null,
                 loyaltyProfileId: payload.loyaltyProfileId || null,
-                status: 'Pending',
+                status: 'Completed',
                 paymentStatus: 'Paid',
                 orderType: payload.orderType || 'DineIn',
                 subtotal: payload.subtotal || 0,
                 tax: payload.tax || 0,
                 total: payload.total || 0,
                 createdAt: Date.now(),
+                completedAt: Date.now(),
+            }).onConflictDoUpdate({
+                target: schema.orders.id,
+                // On replay: only update idempotent completion fields
+                set: { status: 'Completed', paymentStatus: 'Paid', completedAt: Date.now() }
             });
 
-            // B. Create Order Items
+            // B. Upsert Order Items (clear first for idempotency)
+            await tx.delete(schema.orderItems).where(eq(schema.orderItems.orderId, payload.id));
             for (const item of payload.items) {
                 await tx.insert(schema.orderItems).values({
-                    id: `oi_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                    id: `oi_${payload.id}_${item.productId}`,
                     orderId: payload.id,
                     productId: item.productId,
                     name: item.name || 'Unknown Item',
@@ -520,45 +562,43 @@ server.post('/api/order/checkout', async (request, reply) => {
                 });
             }
 
-            // C. Create Payment Record
+            // C. Upsert Payment Record
             await tx.insert(schema.payments).values({
-                id: `pay_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                id: `pay_${payload.id}`,
                 orderId: payload.id,
                 method: payload.payment.method,
                 amount: payload.payment.amount || 0,
                 status: 'COMPLETED',
                 transactionId: payload.payment.transactionId || null,
                 timestamp: Date.now(),
-            });
+            }).onConflictDoNothing(); // Safe replay — ignore if already recorded
 
             // D. Loyalty Logic
             if (payload.loyaltyProfileId) {
                 const pointsToEarn = Math.floor(payload.total);
 
-                // Update Profile
                 await tx.update(schema.loyaltyProfiles)
                     .set({
                         currentPoints: sql`${schema.loyaltyProfiles.currentPoints} + ${pointsToEarn}`,
-                        totalPunches: sql`${schema.loyaltyProfiles.totalPunches} + 1`
+                        totalPunches: sql`${schema.loyaltyProfiles.totalPunches} + 1`,
+                        updatedAt: Date.now(),
                     })
                     .where(eq(schema.loyaltyProfiles.id, payload.loyaltyProfileId));
 
-                // Record Transaction
                 await tx.insert(schema.loyaltyTransactions).values({
-                    id: `ltx_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                    id: `ltx_${payload.id}`,
                     profileId: payload.loyaltyProfileId,
                     type: 'EARN',
                     points: pointsToEarn,
                     orderId: payload.id,
                     timestamp: Date.now(),
-                });
+                }).onConflictDoNothing();
             }
         });
 
-        // 2. Async Inventory Deduction (Non-blocking)
-        // Note: Handled within Service with its own error handling
+        // 2. THE EXPLOSION ENGINE — Deducts stockStand per the order's assembly recipes
         InventoryService.deductOrderInventory(payload.id, payload.items).catch((err: any) => {
-            console.error('[CheckoutAPI] Inventory deduction background failure:', err);
+            console.error('[CheckoutAPI] Inventory explosion failure:', err);
         });
 
         // 3. Lucky Issuance Logic (10% Chance for Guests)
@@ -580,11 +620,19 @@ server.post('/api/order/checkout', async (request, reply) => {
             }
         }
 
+        // 3. Notify BOH via WebSocket so KDS can pick up new orders
+        socketService.emit('order:synced', {
+            orderId: payload.id,
+            total: payload.total,
+            itemCount: payload.items.reduce((a: number, i: any) => a + i.quantity, 0),
+        });
+
+        request.log.info(`[Checkout] ✅ Order ${payload.id} synced. Lucky: ${!!luckyCardNumber}`);
         return {
             success: true,
             orderId: payload.id,
             message: "Order processed successfully",
-            luckyWinner: !!luckyCardNumber // Simple boolean trigger for now
+            luckyWinner: !!luckyCardNumber
         };
 
     } catch (error) {
@@ -743,7 +791,8 @@ server.post('/api/loyalty/register', async (request, reply) => {
             currentPoints: 0,
             totalPunches: 0,
             currentTierId: 'tier_starter',
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            updatedAt: Date.now()
         });
 
         // Fetch back to confirm
@@ -1028,6 +1077,7 @@ server.post('/api/recipes', async (request, reply) => {
                 storageInstructions: body.storageInstructions,
                 shelfLifeDays: body.shelfLifeDays,
                 equipment: body.equipment ? body.equipment.join(',') : '',
+                updatedAt: Date.now()
             });
 
             if (body.components && body.components.length > 0) {
@@ -1082,6 +1132,7 @@ server.put('/api/recipes/:id', async (request, reply) => {
                     storageInstructions: body.storageInstructions,
                     shelfLifeDays: body.shelfLifeDays,
                     equipment: body.equipment ? body.equipment.join(',') : '',
+                    updatedAt: Date.now()
                 })
                 .where(eq(schema.recipes.id, id));
 
@@ -1163,7 +1214,8 @@ server.post('/api/inventory/item', async (request, reply) => {
             costPerUnit: item.costPerUnit || 0,
             stockKitchen: item.stockKitchen || 0,
             stockStand: item.stockStand || 0,
-            preferredSupplierId: supplierId
+            preferredSupplierId: supplierId,
+            updatedAt: Date.now()
         });
         return { success: true, id };
     } catch (e) {
@@ -1186,7 +1238,8 @@ server.put('/api/inventory/item/:id', async (request, reply) => {
             type: item.type,
             stockUnit: item.stockUnit,
             costPerUnit: item.costPerUnit,
-            preferredSupplierId: supplierId
+            preferredSupplierId: supplierId,
+            updatedAt: Date.now()
         };
 
         // Apply live stock adjustment if provided
@@ -1343,7 +1396,9 @@ server.put('/api/products', async (request, reply) => {
                     kitchenLabel: p.metadata?.kitchenLabel || p.name,
                     packagingSku: p.packaging?.sku,
                     recipeId: recipeId,
-                    inventoryItemId: inventoryItemId
+                    inventoryItemId: inventoryItemId,
+                    updatedAt: Date.now(),
+                    deletedAt: null
                 }).onConflictDoUpdate({
                     target: schema.products.id,
                     set: {
@@ -1355,7 +1410,9 @@ server.put('/api/products', async (request, reply) => {
                         kitchenLabel: p.metadata?.kitchenLabel || p.name,
                         packagingSku: p.packaging?.sku,
                         recipeId: recipeId,
-                        inventoryItemId: inventoryItemId
+                        inventoryItemId: inventoryItemId,
+                        updatedAt: Date.now(),
+                        deletedAt: null
                     }
                 });
 
@@ -1439,7 +1496,10 @@ server.delete('/api/products/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     try {
         await db.update(schema.products)
-            .set({ deletedAt: Date.now() })
+            .set({
+                deletedAt: Date.now(),
+                updatedAt: Date.now()
+            })
             .where(eq(schema.products.id, id));
         return { success: true };
     } catch (e) {
@@ -1452,7 +1512,10 @@ server.post('/api/products/:id/restore', async (request, reply) => {
     const { id } = request.params as { id: string };
     try {
         await db.update(schema.products)
-            .set({ deletedAt: null })
+            .set({
+                deletedAt: null,
+                updatedAt: Date.now()
+            })
             .where(eq(schema.products.id, id));
         return { success: true };
     } catch (e) {
@@ -1474,6 +1537,46 @@ server.delete('/api/products/:id/permanent', async (request, reply) => {
     } catch (e) {
         request.log.error(e);
         reply.code(500).send({ error: 'Failed to permanently delete product' });
+    }
+});
+
+
+// --- ORDER READ ROUTES ---
+server.get('/api/orders', async (request, reply) => {
+    try {
+        const { status, limit } = request.query as { status?: string; limit?: string };
+        const maxRows = limit ? Math.min(parseInt(limit), 500) : 100;
+
+        const rows = await db.query.orders.findMany({
+            orderBy: (o, { desc }) => [desc(o.createdAt)],
+            limit: maxRows,
+            ...(status ? { where: eq(schema.orders.status, status) } : {}),
+            with: {
+                items: true,
+                payments: true,
+            }
+        });
+
+        return rows;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch orders' });
+    }
+});
+
+server.get('/api/orders/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        const order = await db.query.orders.findFirst({
+            where: eq(schema.orders.id, id),
+            with: { items: true, payments: true }
+        });
+
+        if (!order) return reply.code(404).send({ error: 'Order not found' });
+        return order;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch order' });
     }
 });
 

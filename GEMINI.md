@@ -1,7 +1,7 @@
 # GEMINI.md - Project Map & Source of Truth
 
 **Project**: Hyphae Suit Monorepo
-**Last Updated**: 2026-02-19 (Late Session)
+**Last Updated**: 2026-02-22
 
 ## 1. Project Overview
 
@@ -40,24 +40,29 @@ The following rules are enforced across the entire monorepo:
 
 ## 4. Project Status & Roadmap
 
-> **Current Directive**: The project has officially pivoted to the **V2 Architecture Blueprint** (defined in `DEVELOPMENT_PLAN_V2.md`). All efforts are sequence-locked to the golden pipeline rules. 
-> **Current Active Phase**: Phase 2 - Localizing the BOH (`apps/boh`).
+> **Current Directive**: The project has officially pivoted to the **V2 Architecture Blueprint** (defined in `DEVELOPMENT_PLAN_V2.md`). All efforts are sequence-locked to the golden pipeline rules.
+> **Current Active Phase**: Phase 4 - The Hive Sync, AI Utility & Hardware.
 
 ### 🟢 Phase 1: Perfecting the Core Foundation (COMPLETED)
 - **Goal**: Finalize `apps/core` to act as the single source of truth.
 
-### 🟡 Phase 2: Localizing the BOH (ACTIVE)
-- **Goal**: Empower the prep kitchen to operate offline using synced data from CORE. Focus on goods reception and batch prep.
-- **Immediate Work**: Supplier Reception, Batch Prep UI, Cart Exchange (Load/Return).
+### 🟢 Phase 2: Localizing the BOH (COMPLETED)
+- **Goal**: Empower the prep kitchen to operate offline using synced data from CORE.
 
-### 🟢 Phase 3: Localizing the POS (Upcoming)
-- **Goal**: Rip out the generic `idb` API queue and replace it with a true offline SQLite/RxDB local replica sync engine.
+### 🟢 Phase 3: Localizing the POS (COMPLETED)
+- **Goal**: Replace generic `idb` with a true offline LibSQL WASM local replica sync engine.
+- LibSQL WASM + OPFS integrated into `apps/pos`. `MenuRepository` & `OrderRepository` use local DB. `AuthService` has offline PIN fallback. `SyncEngine` implements full Pull/Push cycle.
 
-### 🌪️ Phase 4 & 5: AI Tools & Mobile Expansion (Future)
-- **Goal**: Deploy the Market App, the Patron App, OCR Parsing, and Predictive Forecasting.
+### 🟡 Phase 4: The Hive Sync, AI Utility & Hardware (ACTIVE — Step 1 Complete)
+- **Step 1 (DONE)**: The Explosion Engine. `POST /api/order/checkout` is now idempotent. Inventory depleted on sync. Loyalty awarded. BOH notified via WebSocket. `GET /api/orders` & `GET /api/orders/:id` added. Sync pipeline verified end-to-end (`since=0` → 12 products, 3 categories, 26 modifiers, 27 inv items, 3 users, 4 loyalty).
+- **Step 2 (Next)**: BOH Supplier Reception UI. Add `suppliers` + `modifierGroups` to `/api/sync/pull`.
+- **Step 3**: Hardware — ESC/POS printer & Mexican payment gateway (Clip/Mercado Libre).
+
+### 🌪️ Phase 5: Mobile Ecosystem Expansion (Future)
+- **Goal**: Deploy Market App, Patron App, OCR Parsing, and Predictive Forecasting.
 
 ### 🎨 Phase 6: UI Homologation (Future)
-- **Goal**: Extract the styling from `apps/pos` into `@hyphae/ui` and apply the exact look-and-feel globally to all other nodes. 
+- **Goal**: Extract the styling from `apps/pos` into `@hyphae/ui` and apply the exact look-and-feel globally to all other nodes.
 
 ## 5. Technical SOPs
 
@@ -68,6 +73,13 @@ The following rules are enforced across the entire monorepo:
 
 ## 6. Maintenance Log
 
+- **2026-02-22**: **Phase 3 Complete + Phase 4 Step 1: Explosion Engine**.
+    - **Schema**: Added `updatedAt`/`deletedAt` to all syncable tables (`suppliers`, `inventoryItems`, `recipes`, `products`, `modifierOptions`, `users`, `loyaltyProfiles`). Added `syncedAt` to `orders`. Added `orderItemsRelations` back-relation.
+    - **API — Sync Engine**: Added `GET /api/sync/pull?since={ts}` delta endpoint. Verified returns all 12 products, 26 modifiers, 27 inventory items, 3 users, 4 loyalty profiles on fresh pull.
+    - **API — Explosion Engine**: Upgraded `POST /api/order/checkout` with full idempotency (`onConflictDoUpdate`/`onConflictDoNothing`). Runs `InventoryService.deductOrderInventory()` async on each synced order. Awards loyalty points + `updatedAt` stamp. Emits `order:synced` WebSocket to BOH.
+    - **API — Order Reads**: Added `GET /api/orders` (paginated, relational) and `GET /api/orders/:id`.
+    - **POS**: Integrated LibSQL WASM + OPFS. `MenuRepository` & `OrderRepository` read/write local SQLite. `SyncEngine` v2 implements Pull (upsert structural data) and Push (upload unsynced orders). `AuthService` adds offline PIN fallback via local `users` table.
+    - **Seed**: Mass-stamps `updatedAt = Date.now()` on all syncable tables at end of seed. Guarded `recipeId` null check in products seeding.
 - **2026-02-20**: **Phase 1 Completion (Core Foundation)**. Finalized the Recipe Architect and Forecast Engine. Organized explicitly tracked internal database exchanges (Load/Return Cart). Activated Phase 2 (Localizing the BOH).
 - **2026-02-19**: **Archival & Recovery (Soft-Delete)**. Implemented full "Recycle Bin" lifecycle for menu items.
     - **Database**: Added `deletedAt` column to `products` table for non-destructive removals.

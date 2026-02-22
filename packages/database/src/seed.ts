@@ -29,8 +29,8 @@ const seed = async () => {
   console.log('🌱 Starting Supply Chain Seeding...');
 
   try {
-    // 1. Clean Database (optional, or just rely on upserts)
-    // For now, let's just insert.
+    // 1. Seed data (inserts use onConflictDoNothing for re-run safety)
+    // After inserting, we stamp updatedAt on all syncable tables so delta sync works from day 1.
 
     // 2. Seed Suppliers
     console.log(`📦 Seeding ${SUPPLIERS.length} Suppliers...`);
@@ -42,7 +42,8 @@ const seed = async () => {
         email: supp.email,
         phone: supp.phone,
         category: supp.category,
-        leadTimeDays: supp.leadTimeDays
+        leadTimeDays: supp.leadTimeDays,
+        updatedAt: Date.now() // Stamp for sync
       }).onConflictDoNothing();
     }
 
@@ -58,7 +59,8 @@ const seed = async () => {
         type: item.type,
         stockUnit: item.stockUnit,
         costPerUnit: item.costPerUnit,
-        preferredSupplierId: supplierId
+        preferredSupplierId: supplierId,
+        updatedAt: Date.now() // Stamp for sync
       }).onConflictDoNothing();
     }
 
@@ -72,6 +74,7 @@ const seed = async () => {
         yieldQuantity: recipe.yieldQuantity,
         yieldUnit: recipe.yieldUnit,
         outputInventoryItemId: recipe.outputInventoryItemId,
+        updatedAt: Date.now() // Stamp for sync
       }).onConflictDoNothing();
 
       // Seed Ingredients
@@ -83,7 +86,7 @@ const seed = async () => {
             recipeId: recipe.id,
             inventoryItemId: comp.inventoryItemId,
             quantity: comp.quantity,
-            unit: comp.unit
+            unit: comp.unit,
           }).onConflictDoNothing();
         }
       }
@@ -95,7 +98,7 @@ const seed = async () => {
       await db.insert(schema.concepts).values({
         id: concept.id,
         name: concept.name,
-        color: concept.color
+        color: concept.color,
       }).onConflictDoNothing();
     }
 
@@ -103,7 +106,7 @@ const seed = async () => {
       await db.insert(schema.categories).values({
         id: cat.id,
         name: cat.name,
-        conceptId: cat.conceptId
+        conceptId: cat.conceptId,
       }).onConflictDoNothing();
     }
 
@@ -124,7 +127,7 @@ const seed = async () => {
         id: group.id,
         name: group.name,
         required: group.required,
-        multiSelect: group.multiSelect
+        multiSelect: group.multiSelect,
       }).onConflictDoNothing();
     }
 
@@ -135,13 +138,18 @@ const seed = async () => {
         groupId: opt.groupId,
         name: opt.name,
         price: opt.price,
-        kitchenLabel: opt.metadata?.kitchenLabel
+        kitchenLabel: opt.metadata?.kitchenLabel,
       }).onConflictDoNothing();
     }
 
     console.log(`🍔 Seeding ${PRODUCTS.length} Products...`);
     for (const p of PRODUCTS) {
       const recipeId = p.inventoryMetadata?.recipeId;
+
+      if (!recipeId) {
+        console.warn(`⚠️ Skipping product ${p.name} — no recipeId found.`);
+        continue;
+      }
 
       await db.insert(schema.products).values({
         id: p.id,
@@ -151,7 +159,8 @@ const seed = async () => {
         requiresMods: p.requiresMods,
         packagingSku: p.packaging?.sku,
         kitchenLabel: p.metadata?.kitchenLabel,
-        recipeId: recipeId
+        recipeId: recipeId,
+        updatedAt: Date.now() // Stamp for sync
       }).onConflictDoNothing();
 
       // Link Modifiers
@@ -163,7 +172,7 @@ const seed = async () => {
             id: linkId,
             productId: p.id,
             modifierGroupId: group.id,
-            sortOrder: sortOrder++
+            sortOrder: sortOrder++,
           }).onConflictDoNothing();
         }
       }
@@ -178,7 +187,8 @@ const seed = async () => {
       status: 'RECEIVED',
       placedAt: Date.now() - 86400000,
       receivedAt: Date.now(),
-      totalCost: 0
+      totalCost: 0,
+      updatedAt: Date.now() // Stamp for sync
     }).onConflictDoNothing();
 
     for (const item of INVENTORY_ITEMS) {
@@ -189,7 +199,7 @@ const seed = async () => {
           inventoryItemId: item.id,
           quantityOrdered: 100,
           quantityReceived: 100,
-          cost: item.costPerUnit * 100
+          cost: item.costPerUnit * 100,
         }).onConflictDoNothing();
 
         await db.insert(schema.inventoryTransactions).values({
@@ -199,11 +209,11 @@ const seed = async () => {
           quantity: 100,
           reason: 'Initial Stock',
           referenceId: initialOrderId,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         }).onConflictDoNothing();
 
         await db.update(schema.inventoryItems)
-          .set({ stockKitchen: 100 })
+          .set({ stockKitchen: 100, updatedAt: Date.now() }) // Also update updatedAt on stock change
           .where(eq(schema.inventoryItems.id, item.id));
       }
     }
@@ -219,7 +229,7 @@ const seed = async () => {
     ];
 
     for (const u of MOCK_USERS) {
-      await db.insert(schema.users).values(u).onConflictDoNothing();
+      await db.insert(schema.users).values({ ...u, updatedAt: Date.now() }).onConflictDoNothing();
     }
 
     // 9. Seed Loyalty Profiles
@@ -235,7 +245,8 @@ const seed = async () => {
         currentPoints: profile.currentPoints,
         totalPunches: profile.totalPunches,
         currentTierId: profile.currentTierId,
-        createdAt: profile.joinedDate || Date.now()
+        createdAt: profile.joinedDate || Date.now(),
+        updatedAt: Date.now() // Stamp for sync
       }).onConflictDoNothing();
     }
 
@@ -252,7 +263,21 @@ const seed = async () => {
       }).onConflictDoNothing();
     }
 
-    // 11. Generate Historical Orders (For Dashboard/Analysis)
+    // 11. Stamp all syncable tables with current updatedAt (ensures delta sync works from day 1)
+    console.log('🕐 Stamping updatedAt on all syncable tables...');
+    const now = Date.now();
+    await Promise.all([
+      db.update(schema.products).set({ updatedAt: now }),
+      db.update(schema.categories).set({ updatedAt: now }),
+      db.update(schema.modifierOptions).set({ updatedAt: now }),
+      db.update(schema.inventoryItems).set({ updatedAt: now }),
+      db.update(schema.users).set({ updatedAt: now }),
+      db.update(schema.loyaltyProfiles).set({ updatedAt: now }),
+      db.update(schema.suppliers).set({ updatedAt: now }),
+    ]);
+    console.log('✅ Sync timestamps applied.');
+
+    // 12. Generate Historical Orders (For Dashboard/Analysis)
     await generateMockOrders(30);
 
   } catch (error) {

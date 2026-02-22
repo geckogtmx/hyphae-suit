@@ -19,6 +19,8 @@ export const suppliers = sqliteTable('suppliers', {
   phone: text('phone'),
   category: text('category').notNull(), // Produce, Meat, etc.
   leadTimeDays: integer('lead_time_days').default(0),
+  updatedAt: integer('updated_at').notNull().default(0),
+  deletedAt: integer('deleted_at'),
 });
 
 export const supplyOrders = sqliteTable('supply_orders', {
@@ -28,6 +30,7 @@ export const supplyOrders = sqliteTable('supply_orders', {
   placedAt: integer('placed_at'),
   receivedAt: integer('received_at'),
   totalCost: real('total_cost'),
+  updatedAt: integer('updated_at').notNull().default(0),
 });
 
 export const supplyOrderItems = sqliteTable('supply_order_items', {
@@ -50,6 +53,7 @@ export const inventoryItems = sqliteTable('inventory_items', {
   stockKitchen: real('stock_kitchen').default(0), // BOH (Back of House)
   stockStand: real('stock_stand').default(0), // FOH (Front of House / Stand)
   preferredSupplierId: text('preferred_supplier_id').references(() => suppliers.id),
+  updatedAt: integer('updated_at').notNull().default(0),
 });
 
 export const inventoryTransactions = sqliteTable('inventory_transactions', {
@@ -77,6 +81,8 @@ export const recipes = sqliteTable('recipes', {
   storageInstructions: text('storage_instructions'),
   shelfLifeDays: integer('shelf_life_days'),
   equipment: text('equipment'), // Comma-separated list
+  updatedAt: integer('updated_at').notNull().default(0),
+  deletedAt: integer('deleted_at'),
 });
 
 export const recipeSteps = sqliteTable('recipe_steps', {
@@ -109,6 +115,8 @@ export const categories = sqliteTable('categories', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   conceptId: text('concept_id').notNull().references(() => concepts.id),
+  updatedAt: integer('updated_at').notNull().default(0),
+  deletedAt: integer('deleted_at'),
 });
 
 export const products = sqliteTable('products', {
@@ -129,6 +137,7 @@ export const products = sqliteTable('products', {
   inventoryItemId: text('inventory_item_id').references(() => inventoryItems.id),
 
   // Soft Delete
+  updatedAt: integer('updated_at').notNull().default(0),
   deletedAt: integer('deleted_at'),
 });
 
@@ -148,6 +157,8 @@ export const modifierOptions = sqliteTable('modifier_options', {
   // Inventory Map
   recipeId: text('recipe_id').references(() => recipes.id),
   inventoryItemId: text('inventory_item_id').references(() => inventoryItems.id),
+  updatedAt: integer('updated_at').notNull().default(0),
+  deletedAt: integer('deleted_at'),
 });
 
 // Junction: Products <-> Modifier Groups
@@ -177,6 +188,7 @@ export const orders = sqliteTable('orders', {
 
   createdAt: integer('created_at').notNull(),
   completedAt: integer('completed_at'),
+  syncedAt: integer('synced_at'), // Track when pushed to CORE
 });
 
 export const payments = sqliteTable('payments', {
@@ -207,6 +219,8 @@ export const users = sqliteTable('users', {
   pin: text('pin').notNull(), // Hashed or Encrypted
   role: text('role').notNull().default('staff'), // admin, manager, staff
   isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  updatedAt: integer('updated_at').notNull().default(0),
+  deletedAt: integer('deleted_at'),
 });
 
 export const loyaltyProfiles = sqliteTable('loyalty_profiles', {
@@ -220,6 +234,8 @@ export const loyaltyProfiles = sqliteTable('loyalty_profiles', {
   currentTierId: text('current_tier_id').notNull().default('tier_starter'),
   isPhysicalCard: integer('is_physical_card', { mode: 'boolean' }).default(false),
   createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull().default(0),
+  deletedAt: integer('deleted_at'),
 });
 
 export const loyaltyTransactions = sqliteTable('loyalty_transactions', {
@@ -331,6 +347,13 @@ export const ordersRelations = relations(orders, ({ many }) => ({
 export const paymentsRelations = relations(payments, ({ one }) => ({
   order: one(orders, {
     fields: [payments.orderId],
+    references: [orders.id],
+  }),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
     references: [orders.id],
   }),
 }));

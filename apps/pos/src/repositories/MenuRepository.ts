@@ -6,7 +6,8 @@
  * @last-updated 2026-02-12
  */
 
-import { db, schema } from '@hyphae/database';
+import { db } from '../db';
+import { schema } from '@hyphae/database';
 import { Product, ModifierGroup, ModifierOption } from '@hyphae/schemas';
 import { IMenuRepository } from './interfaces';
 import { eq } from 'drizzle-orm';
