@@ -1,14 +1,32 @@
-import { useState, useMemo, useEffect } from 'react';
+/**
+ * @author Hyphae POS Team
+ * @description BOH Goods Reception screen. Supports two flows:
+ *   1. From Purchase Order — receive a PLACED supply order by confirming qty per line item.
+ *   2. Manual Ingestion — ad-hoc stock entry for walk-in or unscheduled deliveries.
+ * @version 1.1.0
+ * @last-updated 2026-02-23
+ */
+
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, Button, Badge } from '../ui/base';
 import { useInventoryStore } from '../../stores/inventoryStore';
+import { CheckCircle, XCircle } from 'lucide-react';
 
-type UnitType = 'standard' | 'bulk'; // kg vs sack
+type UnitType = 'standard' | 'bulk';
 type ModeType = 'order' | 'manual';
+type ToastState = { message: string; type: 'success' | 'error' } | null;
 
 export function ReceivingForm() {
     const { inventory, supplyOrders, suppliers, fetchInventory, fetchSupplyOrders } = useInventoryStore();
     const [mode, setMode] = useState<ModeType>('order');
     const [loading, setLoading] = useState(false);
+    const [toast, setToast] = useState<ToastState>(null);
+
+    /** Show a non-blocking inline toast that auto-dismisses after 4 seconds. */
+    const showToast = useCallback((message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 4000);
+    }, []);
 
     // Manual Form State
     const [selectedItem, setSelectedItem] = useState<string>('');
@@ -53,11 +71,11 @@ export function ReceivingForm() {
 
             if (!res.ok) {
                 const err = await res.json();
-                alert(`Manual Receiving Failed: ${err.error}`);
+                showToast(`Manual Receiving Failed: ${err.error}`, 'error');
                 return;
             }
 
-            alert('Manual Stock Received Successfully');
+            showToast('Manual Stock Received Successfully ✓', 'success');
             setUnitCount(1);
             setNetWeight(0);
             setTotalCost(0);
@@ -65,7 +83,7 @@ export function ReceivingForm() {
             fetchInventory();
         } catch (e) {
             console.error('API Error', e);
-            alert('Network Error');
+            showToast('Network Error — Check API connection', 'error');
         } finally {
             setLoading(false);
         }
@@ -102,18 +120,18 @@ export function ReceivingForm() {
 
             if (!res.ok) {
                 const err = await res.json();
-                alert(`Order Receiving Failed: ${err.error}`);
+                showToast(`Order Receiving Failed: ${err.error}`, 'error');
                 return;
             }
 
-            alert('Order Received & Fully Ingested');
+            showToast('Order Received & Fully Ingested into Kitchen Stock ✓', 'success');
             setSelectedOrderId('');
             setOrderReceipts({});
             fetchInventory();
             fetchSupplyOrders();
         } catch (e) {
             console.error('API Error', e);
-            alert('Network Error');
+            showToast('Network Error — Check API connection', 'error');
         } finally {
             setLoading(false);
         }
@@ -123,6 +141,21 @@ export function ReceivingForm() {
 
     return (
         <Card className="bg-ink-500 p-6 w-full max-w-4xl mx-auto h-full flex flex-col overflow-hidden">
+            {/* Inline Toast Notification */}
+            {toast && (
+                <div className={`flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border text-sm font-semibold animate-in slide-in-from-top-2 duration-200
+                    ${toast.type === 'success'
+                        ? 'bg-lime-500/10 border-lime-500/30 text-lime-400'
+                        : 'bg-red-500/10 border-red-500/30 text-red-400'
+                    }`
+                }>
+                    {toast.type === 'success'
+                        ? <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                        : <XCircle className="w-5 h-5 flex-shrink-0" />
+                    }
+                    <span>{toast.message}</span>
+                </div>
+            )}
             <div className="flex items-center justify-between border-b border-jet-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold text-white">Goods Reception</h2>
                 <div className="flex bg-jet-700 p-1 rounded-lg">

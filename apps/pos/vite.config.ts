@@ -8,8 +8,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5174,
       host: '0.0.0.0',
+      // Note: COOP/COEP headers removed — those were needed for LibSQL WASM (SharedArrayBuffer/OPFS).
+      // sql.js is a standard WASM module that works without cross-origin isolation.
     },
     plugins: [react()],
+    assetsInclude: ['**/*.wasm'],
     define: {
       // 'process.env.API_KEY': REMOVED for security
     },

@@ -1,7 +1,15 @@
+/**
+ * @author Hyphae POS Team
+ * @description Zustand store for BOH inventory, suppliers, and supply orders.
+ * @version 1.1.0
+ * @last-updated 2026-02-23
+ */
 
 import { create } from 'zustand';
 import type { InventoryItem, InventoryStore } from '../types';
 import { mockInventory } from '../lib/mockData';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export const useInventoryStore = create<InventoryStore & {
     suppliers: any[];
@@ -17,7 +25,7 @@ export const useInventoryStore = create<InventoryStore & {
     fetchInventory: async () => {
         try {
             const apiKey = import.meta.env.VITE_HYPHAE_API_KEY;
-            const res = await fetch('http://localhost:3001/api/inventory', {
+            const res = await fetch(`${API_URL}/inventory`, {
                 headers: {
                     'x-api-key': apiKey || ''
                 }
@@ -44,8 +52,8 @@ export const useInventoryStore = create<InventoryStore & {
             };
 
             const [suppliersRes, ordersRes] = await Promise.all([
-                fetch('http://localhost:3001/api/suppliers', { headers: reqHeaders }),
-                fetch('http://localhost:3001/api/supply-orders', { headers: reqHeaders })
+                fetch(`${API_URL}/suppliers`, { headers: reqHeaders }),
+                fetch(`${API_URL}/supply-orders`, { headers: reqHeaders })
             ]);
 
             if (suppliersRes.ok && ordersRes.ok) {

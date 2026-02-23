@@ -3,12 +3,14 @@ import { Card, Button, Badge } from '../ui/base';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import type { DecayStatus } from './visual-decay';
 import { VisualDecayIcon } from './visual-decay';
-import { Plus, Printer, XCircle, Recycle } from 'lucide-react';
+import { Printer, Layers } from 'lucide-react';
+import { DispositionModal } from './DispositionModal';
 
 export function InventoryDashboard() {
     const { inventory, fetchInventory } = useInventoryStore();
     const [filter, setFilter] = useState<'ALL' | 'RAW' | 'PREP'>('ALL');
     const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+    const [dispositionOpen, setDispositionOpen] = useState(false);
 
     useEffect(() => {
         fetchInventory();
@@ -103,21 +105,51 @@ export function InventoryDashboard() {
                                 <div className="space-y-4 border-t border-jet-700 pt-8 mt-auto">
                                     <h3 className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Inventory Operations</h3>
                                     <div className="flex gap-4">
-                                        <Button className="flex-1 flex gap-2"><Recycle className="w-4 h-4" /> Move to Waste</Button>
-                                        <Button variant="secondary" className="flex-1 flex gap-2"><Printer className="w-4 h-4" /> Print Labels</Button>
+                                        <Button
+                                            className="flex-1 flex gap-2"
+                                            onClick={() => setDispositionOpen(true)}
+                                        >
+                                            <Layers className="w-4 h-4" /> Dispose / Convert
+                                        </Button>
+                                        <Button variant="secondary" className="flex-1 flex gap-2">
+                                            <Printer className="w-4 h-4" /> Print Labels
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ) : (
                         <div className="flex-1 flex items-center justify-center flex-col text-gray-500 opacity-50 p-6 text-center">
-                            <Recycle size={64} className="mb-4" />
+                            <Layers size={64} className="mb-4" />
                             <h3 className="text-xl font-bold uppercase">Select an Item</h3>
                             <p className="text-sm">View details and perform operations</p>
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* Disposition Modal — rendered inside the return so it can access the outer div's stacking context */}
+            {dispositionOpen && selectedItem && (
+                <DispositionModal
+                    item={{
+                        id: selectedItem.id,
+                        name: selectedItem.name,
+                        stockKitchen: (selectedItem as any).stockKitchen ?? 0,
+                        stockUnit: (selectedItem as any).stockUnit
+                    }}
+                    allInventory={inventory.map((i: any) => ({
+                        id: i.id,
+                        name: i.name,
+                        stockKitchen: i.stockKitchen ?? 0,
+                        stockUnit: i.stockUnit
+                    }))}
+                    onClose={() => setDispositionOpen(false)}
+                    onSuccess={() => {
+                        setDispositionOpen(false);
+                        fetchInventory();
+                    }}
+                />
+            )}
         </div>
     );
 }

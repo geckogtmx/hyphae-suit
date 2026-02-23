@@ -20,7 +20,7 @@ function App() {
           {activeRoute === 'prep' && <FlightControl />}
           {activeRoute === 'kds' && <OrderView />}
           {activeRoute === 'inventory' && <InventoryDashboard />}
-          {activeRoute === 'receiving' && <div className="p-4 h-full flex items-center justify-center"><ReceivingForm /></div>}
+          {activeRoute === 'receiving' && <div className="h-full overflow-y-auto"><ReceivingForm /></div>}
           {activeRoute === 'transfer' && <InventoryTransfer />}
           {activeRoute === 'recipes' && <RecipesList />}
           {activeRoute === 'ops' && <div className="p-10 text-center text-gray-400">Ops/Shift Log (Coming Phase 4)</div>}

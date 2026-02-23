@@ -62,47 +62,225 @@ export class SyncEngine {
   private async pullSnapshot(): Promise<void> {
     const lastSync = localStorage.getItem(this.lastSyncKey) || '0';
 
-    const response = await fetch(`${API_URL}/api/sync/pull?since=${lastSync}`, {
-      headers: { 'Content-Type': 'application/json' }
+    const response = await fetch(`${API_URL}/sync/pull?since=${lastSync}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
+      }
     });
 
     if (!response.ok) throw new Error(`Pull failed: ${response.statusText}`);
 
     const data = await response.json();
-    const { products, categories, modifierOptions, inventoryItems, users, loyaltyProfiles, timestamp } = data;
+    const {
+      products, categories, modifierGroups, modifierOptions,
+      inventoryItems, suppliers, users, loyaltyProfiles, timestamp
+    } = data;
 
-    // Atomic upsert into local SQLite
-    // Note: LibSQL/Drizzle in browser handles this sequentially or via batch
-    await db.transaction(async (tx) => {
-      // Products
-      for (const p of products) {
-        await tx.insert(schema.products).values(p).onConflictDoUpdate({ target: schema.products.id, set: p });
+    // Use raw sql.js for bulk upserts.
+    // Reason: Drizzle sqlite-proxy ignores the `set` object in onConflictDoUpdate
+    // and regenerates the SET clause from the full schema — this doubles the `?` param
+    // count and misaligns bindings, causing NOT NULL constraint failures on shifted columns.
+    // Using `excluded.*` in raw SQL means the SET clause needs ZERO extra `?` params,
+    // so there is no possibility of misalignment.
+    const { getSqlJsDb } = await import('../db/sqljs');
+    const rawDb = getSqlJsDb();
+    if (!rawDb) throw new Error('[Sync] sql.js DB not available');
+
+    rawDb.run('BEGIN');
+    try {
+      // FK order: suppliers → inventoryItems, modifierGroups → modifierOptions
+
+      // --- Suppliers ---
+      for (const s of suppliers) {
+        if (!s.id || !s.name || !s.category) {
+          console.warn('[Sync] Skipping supplier with missing required field:', JSON.stringify(s));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO suppliers (id, name, contact_name, email, phone, category, lead_time_days, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              s.id, s.name, s.contactName ?? null,
+              s.email ?? null, s.phone ?? null, s.category,
+              s.leadTimeDays ?? 0, s.updatedAt ?? 0,
+              s.deletedAt ?? null
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] SUPPLIER upsert failed:', e.message, '| Record:', JSON.stringify(s));
+          throw e;
+        }
       }
-      // Categories
+
+      // --- Modifier Groups ---
+      for (const g of modifierGroups) {
+        if (!g.id || !g.name) {
+          console.warn('[Sync] Skipping modifierGroup with missing required field:', JSON.stringify(g));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO modifier_groups (id, name, required, multi_select)
+             VALUES (?, ?, ?, ?)`,
+            [
+              g.id, g.name, g.required ? 1 : 0,
+              g.multiSelect ? 1 : 0
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] MODIFIER_GROUP upsert failed:', e.message, '| Record:', JSON.stringify(g));
+          throw e;
+        }
+      }
+
+      // --- Categories ---
       for (const c of categories) {
-        await tx.insert(schema.categories).values(c).onConflictDoUpdate({ target: schema.categories.id, set: c });
+        if (!c.id || !c.name) {
+          console.warn('[Sync] Skipping category with missing required field:', JSON.stringify(c));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO categories (id, name, concept_id, updated_at)
+             VALUES (?, ?, ?, ?)`,
+            [
+              c.id, c.name, c.conceptId ?? null,
+              c.updatedAt ?? 0
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] CATEGORY upsert failed:', e.message, '| Record:', JSON.stringify(c));
+          throw e;
+        }
       }
-      // Modifier Options
-      for (const m of modifierOptions) {
-        await tx.insert(schema.modifierOptions).values(m).onConflictDoUpdate({ target: schema.modifierOptions.id, set: m });
-      }
-      // Inventory (stock levels for 86ing)
-      for (const i of inventoryItems) {
-        await tx.insert(schema.inventoryItems).values(i).onConflictDoUpdate({ target: schema.inventoryItems.id, set: i });
-      }
-      // Users (Offline Auth)
-      for (const u of users) {
-        await tx.insert(schema.users).values(u).onConflictDoUpdate({ target: schema.users.id, set: u });
-      }
-      // Loyalty Profiles
-      for (const l of loyaltyProfiles) {
-        await tx.insert(schema.loyaltyProfiles).values(l).onConflictDoUpdate({ target: schema.loyaltyProfiles.id, set: l });
-      }
-    });
 
-    localStorage.getItem(this.lastSyncKey);
+      // --- Products ---
+      for (const p of products) {
+        if (!p.id || !p.name) {
+          console.warn('[Sync] Skipping product with missing required field:', JSON.stringify(p));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO products (id, name, category_id, price, is_active, requires_mods, packaging_sku, kitchen_label, recipe_id, inventory_item_id, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              p.id, p.name, p.categoryId ?? null,
+              p.price, p.isActive ? 1 : 0,
+              p.requiresMods ? 1 : 0, p.packagingSku ?? null,
+              p.kitchenLabel ?? null, p.recipeId ?? null,
+              p.inventoryItemId ?? null, p.updatedAt ?? 0,
+              p.deletedAt ?? null
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] PRODUCT upsert failed:', e.message, '| Record:', JSON.stringify(p));
+          throw e;
+        }
+      }
+
+      // --- Modifier Options ---
+      for (const m of modifierOptions) {
+        if (!m.id || !m.name) {
+          console.warn('[Sync] Skipping modifierOption with missing required field:', JSON.stringify(m));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO modifier_options (id, group_id, name, price, kitchen_label, recipe_id, inventory_item_id, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              m.id, m.groupId ?? null, m.name,
+              m.price ?? 0, m.kitchenLabel ?? null,
+              m.recipeId ?? null, m.inventoryItemId ?? null,
+              m.updatedAt ?? 0
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] MODIFIER_OPTION upsert failed:', e.message, '| Record:', JSON.stringify(m));
+          throw e;
+        }
+      }
+
+      // --- Inventory Items ---
+      for (const i of inventoryItems) {
+        if (!i.id || !i.name) {
+          console.warn('[Sync] Skipping inventoryItem with missing required field:', JSON.stringify(i));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO inventory_items (id, name, type, stock_unit, cost_per_unit, stock_kitchen, stock_stand, preferred_supplier_id, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              i.id, i.name, i.type, i.stockUnit,
+              i.costPerUnit ?? 0, i.stockKitchen ?? 0,
+              i.stockStand ?? 0, i.preferredSupplierId ?? null,
+              i.updatedAt ?? 0
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] INVENTORY_ITEM upsert failed:', e.message, '| Record:', JSON.stringify(i));
+          throw e;
+        }
+      }
+
+      // --- Users ---
+      for (const u of users) {
+        if (!u.id || !u.name) {
+          console.warn('[Sync] Skipping user with missing required field:', JSON.stringify(u));
+          continue;
+        }
+        try {
+          rawDb.run(
+            `REPLACE INTO users (id, name, role, pin_hash, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              u.id, u.name, u.role,
+              u.pinHash ?? null, u.updatedAt ?? 0,
+              u.deletedAt ?? null
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] USER upsert failed:', e.message, '| Record:', JSON.stringify(u));
+          throw e;
+        }
+      }
+
+      // --- Loyalty Profiles ---
+      for (const l of loyaltyProfiles) {
+        if (!l.id) continue;
+        try {
+          rawDb.run(
+            `REPLACE INTO loyalty_profiles (id, card_number, customer_name, phone, current_points, total_points_earned, current_tier_id, is_physical_card, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              l.id, l.cardNumber ?? null, l.customerName ?? null,
+              l.phone ?? null, l.currentPoints ?? 0,
+              l.totalPointsEarned ?? 0, l.currentTierId ?? null,
+              l.isPhysicalCard ? 1 : 0, l.createdAt ?? null,
+              l.updatedAt ?? 0
+            ]
+          );
+        } catch (e: any) {
+          console.error('[Sync] LOYALTY_PROFILE upsert failed:', e.message, '| Record:', JSON.stringify(l));
+          throw e;
+        }
+      }
+
+      rawDb.run('COMMIT');
+    } catch (e) {
+      rawDb.run('ROLLBACK');
+      throw e;
+    }
+
     localStorage.setItem(this.lastSyncKey, timestamp.toString());
-    console.log(`📥 Pulled ${products.length} products, sync point: ${timestamp}`);
+    console.log(
+      `📥 Pull complete — ${products.length} products, ${modifierGroups.length} mod groups, ` +
+      `${suppliers.length} suppliers. Sync point: ${timestamp}`
+    );
   }
 
   /**
@@ -144,9 +322,12 @@ export class SyncEngine {
           }
         };
 
-        const response = await fetch(`${API_URL}/api/order/checkout`, {
+        const response = await fetch(`${API_URL}/order/checkout`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': import.meta.env.VITE_HYPHAE_API_KEY || ''
+          },
           body: JSON.stringify(payload)
         });
 
