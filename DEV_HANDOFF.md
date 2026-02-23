@@ -1,8 +1,8 @@
 # DEV_HANDOFF.md
 
-> **Last Updated:** 2026-02-22 13:10 CST
+> **Last Updated:** 2026-02-23 12:40 CST
 > **Last Model:** Gemini
-> **Session Focus:** Phase 3 complete + Phase 4 Step 1 Explosion Engine + pre-existing TS build errors resolved
+> **Session Focus:** Phase 4 Step 2 complete + BOH Disposition System + POS DB bootstrap fix (sql.js)
 
 ---
 
@@ -28,18 +28,28 @@
 
 ## ⚠️ Known Issues / Broken
 
-- [ ] **`suppliers` missing from `/api/sync/pull`** — BOH needs supplier names for goods reception. Currently only items in the categories/products/users payload are returned.
-- [ ] **`modifierGroups` missing from `/api/sync/pull`** — POS needs groups (not just options) to reconstruct the modifier UI card titles. Currently `modifierOptions` are returned but orphaned without their parent group context.
-- [ ] **POS Vite WASM Headers** — `@libsql/client/web` requires `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers for OPFS to persist. Vite dev server may need `vite-plugin-cross-origin-isolation` or equivalent config in `apps/pos/vite.config.ts`.
-- [ ] **`products.recipeId` NOT NULL** — The seed now skips products missing a `recipeId`. Verify all 12 expected products still seeded correctly (run `GET /api/products` and count).
+- [ ] **`products.recipeId` NOT NULL** — The seed skips products missing a `recipeId`. Verify all 12 seeded correctly (run `GET /api/products` and count).
+- [ ] **POS SyncEngine `sql.js` Parameter Binding Bug** — The `pullSnapshot` function fails with `NOT NULL constraint failed: suppliers.name` (and similarly for other tables). `sql.js` seems to be stripping or losing positional parameter mappings (`?`) during `REPLACE INTO` queries when called via Vite/WASM, resulting in inserting `NULL` values despite the input arrays containing standard strings. Next dev needs to investigate `drizzle-orm/sqlite-proxy` or bulk inserting mechanisms that bypass this parameter dropping bug.
+- [ ] **BOH `InventoryTransfer`**: Verify transfer screen end-to-end (Load Cart / Return Cart flows)
+- [ ] **POS pre-existing TS errors** — 38 type errors exist in `AssemblyLineModal`, `OrderContext`, `OrderRail`, `OrderService`, `CompletionModal` etc. unrelated to DB changes. Need cleanup pass.
+- [ ] **`db/__tests__/db.test.ts`** — Old test uses `@libsql/client` API directly. Needs rewrite for sql.js.
+
 
 ---
 
 ## 🔄 In Progress / Pending
 
-- [ ] **Phase 4 Step 2**: Add `suppliers` and `modifierGroups` to `GET /api/sync/pull` response payload
-- [ ] **BOH Supplier Reception UI**: Build the receiving screen in `apps/boh` that consumes synced supplier + inventory data
 - [ ] **Hardware Integration** (Phase 4 Step 3): ESC/POS printer driver (Web Bluetooth/USB) + Clip/Mercado Libre payment gateway interface stubs
+- [ ] **BOH `InventoryTransfer`**: Verify transfer screen end-to-end (Load Cart / Return Cart flows)
+
+### 📝 Design Decision — Disposition vs. Waste
+"Waste" is a misnomer. In a real food operation, off-spec or surplus inventory has three distinct outcomes:
+1. **TRUE WASTE** — spoilage, spill, contamination → `POST /api/inventory/waste` (deduct only)
+2. **CONVERSION / UPCYCLE** — beef patties → chili → bread pudding → `POST /api/inventory/convert` (deduct source, credit destination)
+3. **OVERPRODUCTION ADJUSTMENT** — covered by inventory adjustment tools
+
+The `WasteLog.convertedTo?: string` field in `types.ts` already anticipated the upcycle case.
+The `inventoryTransactions.type` column is an open `text` — zero schema changes needed; new types `CONVERSION_OUT` and `CONVERSION_IN` are additive.
 
 ---
 
@@ -79,6 +89,21 @@
 ---
 
 ## Session Log (Last 3 Sessions)
+
+### 2026-02-23 — Gemini
+- Phase 4 Step 2 — **COMPLETE**
+- **`GET /api/sync/pull`** expanded: `suppliers` + `modifierGroups` added to response payload
+- **`SyncEngine.pullSnapshot()`**: FK-ordered upserts, dead localStorage.getItem removed
+- **`apps/pos/vite.config.ts`**: COOP/COEP headers for OPFS
+- **BOH Receiving Screen**: store URLs env-var'd, `alert()` → inline toast, layout fix
+- **BOH Disposition System** — **COMPLETE**:
+  - Design decision: "waste" ≠ disposal; distinction between TRUE WASTE and CONVERSION/UPCYCLE
+  - `InventoryService.convertInventory()` — atomic two-sided transaction (CONVERSION_OUT / CONVERSION_IN)
+  - `POST /api/inventory/convert` — Zod-validated, rejects same-item source/dest
+  - `DispositionModal.tsx` — Write Off mode (reason picker: expired/damaged/spill/quality/overproduced) + Convert mode (source qty → destination item + qty, yield ratio badge, auto-close on success)
+  - `InventoryDashboard` — stub button replaced with “Dispose / Convert” → opens modal
+- `tsc --noEmit` on `apps/api` → zero errors ✅
+- `tsc --noEmit` on `apps/boh` → zero errors ✅
 
 ### 2026-02-22 — Gemini
 - Phase 4 Step 1: The Explosion Engine
