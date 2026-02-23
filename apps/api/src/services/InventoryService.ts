@@ -253,4 +253,70 @@ export class InventoryService {
             return { success: true };
         });
     }
+
+    /**
+     * Converts/Upcycles inventory from one item to another.
+     * Reason: "Waste" is a misnomer. Beef patties can become chili, chili can become bread pudding.
+     * This is a two-sided atomic transaction:
+     *   1. Deduct sourceQty from sourceItemId (CONVERSION_OUT)
+     *   2. Credit destinationQty to destinationItemId (CONVERSION_IN)
+     * The yield ratio can differ (5 patties -> 1 pot of chili).
+     */
+    static async convertInventory(
+        sourceItemId: string,
+        sourceQty: number,
+        destinationItemId: string,
+        destinationQty: number,
+        note?: string
+    ) {
+        console.log(`[Inventory] Conversion: ${sourceQty} of ${sourceItemId} -> ${destinationQty} of ${destinationItemId}`);
+
+        return await db.transaction(async (tx) => {
+            const [sourceItem, destItem] = await Promise.all([
+                tx.query.inventoryItems.findFirst({ where: eq(schema.inventoryItems.id, sourceItemId) }),
+                tx.query.inventoryItems.findFirst({ where: eq(schema.inventoryItems.id, destinationItemId) })
+            ]);
+
+            if (!sourceItem) throw new Error(`Source item not found: ${sourceItemId}`);
+            if (!destItem) throw new Error(`Destination item not found: ${destinationItemId}`);
+            if ((sourceItem.stockKitchen ?? 0) < sourceQty) {
+                throw new Error(`Insufficient kitchen stock. Available: ${sourceItem.stockKitchen} ${sourceItem.stockUnit}`);
+            }
+
+            const conversionRef = `conv_${Date.now()}`;
+            const label = note || `${sourceItem.name} -> ${destItem.name}`;
+
+            // 1. Deduct from source
+            await tx.update(schema.inventoryItems)
+                .set({ stockKitchen: sql`${schema.inventoryItems.stockKitchen} - ${sourceQty}` })
+                .where(eq(schema.inventoryItems.id, sourceItemId));
+
+            await tx.insert(schema.inventoryTransactions).values({
+                id: `tx_conv_out_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                inventoryItemId: sourceItemId,
+                type: 'CONVERSION_OUT',
+                quantity: -sourceQty,
+                reason: `Upcycle out: ${label}`,
+                referenceId: conversionRef,
+                timestamp: Date.now()
+            });
+
+            // 2. Credit destination
+            await tx.update(schema.inventoryItems)
+                .set({ stockKitchen: sql`${schema.inventoryItems.stockKitchen} + ${destinationQty}` })
+                .where(eq(schema.inventoryItems.id, destinationItemId));
+
+            await tx.insert(schema.inventoryTransactions).values({
+                id: `tx_conv_in_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                inventoryItemId: destinationItemId,
+                type: 'CONVERSION_IN',
+                quantity: destinationQty,
+                reason: `Upcycle in: ${label}`,
+                referenceId: conversionRef,
+                timestamp: Date.now()
+            });
+
+            return { success: true, conversionRef };
+        });
+    }
 }

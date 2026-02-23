@@ -111,6 +111,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     const orderItem: OrderItem = {
       ...product,
       uniqueId: draftId,
+      productId: product.id,
       selectedModifiers,
       finalPrice: currentTotal,
     };

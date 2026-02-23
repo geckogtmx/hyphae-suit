@@ -94,6 +94,8 @@ export interface SavedOrder {
   createdAt: number;
   completedAt?: number;
   syncedAt?: number; // V2: Track when pushed to CORE
+  cookingStartedAt?: number;
+  readyAt?: number;
 
   items: OrderItem[];
   subtotal: number;
@@ -111,6 +113,8 @@ export interface SavedOrder {
   confirmationNumber?: string;
   tenderedAmount?: number;
   tipAmount?: number;
+  isLoyalty?: boolean;
+  loyaltySnapshot?: any;
 }
 
 export interface OrderState {

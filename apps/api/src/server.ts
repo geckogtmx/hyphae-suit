@@ -163,19 +163,24 @@ server.get('/api/sync/pull', async (request, reply) => {
     const sinceTimestamp = since ? parseInt(since) : 0;
 
     try {
-        // Fetch all changes since the last sync
+        // Fetch all changes since the last sync.
+        // Note: modifierGroups has no updatedAt column — always return full set (small lookup table).
         const [
             products,
             categories,
+            modifierGroups,
             modifierOptions,
             inventoryItems,
+            suppliers,
             users,
             loyaltyProfiles
         ] = await Promise.all([
             db.select().from(schema.products).where(sql`${schema.products.updatedAt} > ${sinceTimestamp}`),
             db.select().from(schema.categories).where(sql`${schema.categories.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.modifierGroups), // No updatedAt — always full set
             db.select().from(schema.modifierOptions).where(sql`${schema.modifierOptions.updatedAt} > ${sinceTimestamp}`),
             db.select().from(schema.inventoryItems).where(sql`${schema.inventoryItems.updatedAt} > ${sinceTimestamp}`),
+            db.select().from(schema.suppliers).where(sql`${schema.suppliers.updatedAt} > ${sinceTimestamp}`),
             db.select().from(schema.users).where(sql`${schema.users.updatedAt} > ${sinceTimestamp}`),
             db.select().from(schema.loyaltyProfiles).where(sql`${schema.loyaltyProfiles.updatedAt} > ${sinceTimestamp}`)
         ]);
@@ -184,8 +189,10 @@ server.get('/api/sync/pull', async (request, reply) => {
             timestamp: Date.now(),
             products,
             categories,
+            modifierGroups,
             modifierOptions,
             inventoryItems,
+            suppliers,
             users,
             loyaltyProfiles
         };
@@ -1321,6 +1328,42 @@ server.post('/api/inventory/waste', async (request, reply) => {
     } catch (e: any) {
         request.log.error(e);
         reply.code(500).send({ error: e.message || 'Waste log failed' });
+    }
+});
+
+// Converts/upcycles one inventory item into another (e.g. beef patties -> chili).
+// This is NOT waste — it's a two-sided atomic transaction preserving value in the supply chain.
+server.post('/api/inventory/convert', async (request, reply) => {
+    const ConvertSchema = z.object({
+        sourceItemId: z.string().min(1),
+        sourceQty: z.number().positive(),
+        destinationItemId: z.string().min(1),
+        destinationQty: z.number().positive(),
+        note: z.string().optional()
+    });
+
+    try {
+        const body = ConvertSchema.parse(request.body);
+
+        if (body.sourceItemId === body.destinationItemId) {
+            return reply.code(400).send({ error: 'Source and destination must be different items' });
+        }
+
+        const result = await InventoryService.convertInventory(
+            body.sourceItemId,
+            body.sourceQty,
+            body.destinationItemId,
+            body.destinationQty,
+            body.note
+        );
+        return result;
+    } catch (e: any) {
+        request.log.error(e);
+        const isValidation = e instanceof z.ZodError;
+        reply.code(isValidation ? 400 : 500).send({
+            error: isValidation ? 'Validation failed' : (e.message || 'Conversion failed'),
+            ...(isValidation && { details: e.errors })
+        });
     }
 });
 

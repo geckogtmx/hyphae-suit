@@ -102,6 +102,7 @@ const Stage: React.FC<StageProps> = ({
       const orderItem: OrderItem = {
         ...product,
         uniqueId: generateUniqueId(product.id),
+        productId: product.id,
         selectedModifiers: [],
         finalPrice: product.price,
       };

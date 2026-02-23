@@ -1,15 +1,41 @@
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import initSqlJs from 'sql.js';
+import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { products as menuItems, orders } from '@hyphae/database';
-import { eq, sql } from 'drizzle-orm';
-
-const testClient = createClient({ url: 'file::memory:' });
-const db = drizzle(testClient);
+import { eq } from 'drizzle-orm';
 
 describe('Database Integration', () => {
+  let db: any;
+  let rawDb: any;
+
+  beforeAll(async () => {
+    const SQL = await initSqlJs();
+    rawDb = new SQL.Database();
+
+    db = drizzle(
+      async (sql, params, method) => {
+        try {
+          if (method === 'run') {
+            rawDb.run(sql, params as any[]);
+            return { rows: [] };
+          }
+          const stmt = rawDb.prepare(sql);
+          stmt.bind(params as any[]);
+          const rows: any[][] = [];
+          while (stmt.step()) {
+            rows.push(stmt.get());
+          }
+          stmt.free();
+          return { rows };
+        } catch (e: any) {
+          throw e;
+        }
+      }
+    );
+  });
+
   beforeEach(async () => {
     // Initialize tables in memory
-    await testClient.execute(`
+    rawDb.run(`
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         "table" TEXT NOT NULL DEFAULT 'Counter',
@@ -22,6 +48,7 @@ describe('Database Integration', () => {
         ready_at INTEGER,
         completed_at INTEGER,
         updated_at INTEGER NOT NULL,
+        synced_at INTEGER,
         items TEXT NOT NULL,
         subtotal REAL NOT NULL,
         tax REAL NOT NULL,
@@ -34,28 +61,37 @@ describe('Database Integration', () => {
         tendered_amount REAL,
         tip_amount REAL,
         is_loyalty INTEGER,
-        loyalty_snapshot TEXT
+        loyalty_snapshot TEXT,
+        loyalty_profile_id TEXT
       )
     `);
 
-    await testClient.execute(`
-      CREATE TABLE IF NOT EXISTS menu_items (
+    rawDb.run(`
+      CREATE TABLE IF NOT EXISTS products (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         category_id TEXT NOT NULL,
         price REAL NOT NULL,
         requires_mods INTEGER NOT NULL DEFAULT 0,
-        modifier_groups TEXT,
-        metadata TEXT,
-        packaging TEXT,
-        inventory_metadata TEXT,
-        is_available INTEGER NOT NULL DEFAULT 1
+        is_active INTEGER NOT NULL DEFAULT 1,
+        kitchen_label TEXT,
+        packaging_sku TEXT,
+        recipe_id TEXT NOT NULL,
+        inventory_item_id TEXT,
+        updated_at INTEGER NOT NULL DEFAULT 0,
+        deleted_at INTEGER
       )
     `);
 
     // Clean up test data
     await db.delete(menuItems);
     await db.delete(orders);
+  });
+
+  afterAll(() => {
+    if (rawDb) {
+      rawDb.close();
+    }
   });
 
   it('should write and read menu items', async () => {
@@ -65,11 +101,13 @@ describe('Database Integration', () => {
       categoryId: 'burgers',
       price: 12.99,
       requiresMods: false,
-      isAvailable: true,
-      modifierGroups: null,
-      metadata: null,
-      packaging: null,
-      inventoryMetadata: null,
+      isActive: true,
+      recipeId: 'recipe-1',
+      kitchenLabel: null,
+      packagingSku: null,
+      inventoryItemId: null,
+      updatedAt: 0,
+      deletedAt: null
     };
 
     await db.insert(menuItems).values(item);
@@ -83,29 +121,19 @@ describe('Database Integration', () => {
     const fixedTimestamp = 1705420800000;
     const order = {
       id: 'order-1',
-      table: 'Counter',
-      time: '12:00 PM',
       storeId: 'store-1',
       terminalId: 'term-1',
       staffId: 'staff-1',
       createdAt: fixedTimestamp,
-      cookingStartedAt: null,
-      readyAt: null,
       completedAt: null,
-      updatedAt: fixedTimestamp,
-      items: '[]',
+      syncedAt: null,
       subtotal: 20.0,
       tax: 1.6,
       total: 21.6,
-      amountPaid: 21.6,
       status: 'Pending',
       paymentStatus: 'Paid',
       orderType: 'DineIn',
-      confirmationNumber: null,
-      tenderedAmount: null,
-      tipAmount: null,
-      isLoyalty: false,
-      loyaltySnapshot: null,
+      loyaltyProfileId: null
     };
 
     await db.insert(orders).values(order);

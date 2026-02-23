@@ -100,13 +100,18 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO suppliers (id, name, contact_name, email, phone, category, lead_time_days, updated_at, deleted_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              s.id, s.name, s.contactName ?? null,
-              s.email ?? null, s.phone ?? null, s.category,
-              s.leadTimeDays ?? 0, s.updatedAt ?? 0,
-              s.deletedAt ?? null
-            ]
+             VALUES ($id, $name, $contactName, $email, $phone, $category, $leadTimeDays, $updatedAt, $deletedAt)`,
+            {
+              $id: s.id,
+              $name: s.name,
+              $contactName: s.contactName ?? null,
+              $email: s.email ?? null,
+              $phone: s.phone ?? null,
+              $category: s.category,
+              $leadTimeDays: s.leadTimeDays ?? 0,
+              $updatedAt: s.updatedAt ?? 0,
+              $deletedAt: s.deletedAt ?? null
+            }
           );
         } catch (e: any) {
           console.error('[Sync] SUPPLIER upsert failed:', e.message, '| Record:', JSON.stringify(s));
@@ -123,11 +128,13 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO modifier_groups (id, name, required, multi_select)
-             VALUES (?, ?, ?, ?)`,
-            [
-              g.id, g.name, g.required ? 1 : 0,
-              g.multiSelect ? 1 : 0
-            ]
+             VALUES ($id, $name, $required, $multiSelect)`,
+            {
+              $id: g.id,
+              $name: g.name,
+              $required: g.required ? 1 : 0,
+              $multiSelect: g.multiSelect ? 1 : 0
+            }
           );
         } catch (e: any) {
           console.error('[Sync] MODIFIER_GROUP upsert failed:', e.message, '| Record:', JSON.stringify(g));
@@ -144,11 +151,13 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO categories (id, name, concept_id, updated_at)
-             VALUES (?, ?, ?, ?)`,
-            [
-              c.id, c.name, c.conceptId ?? null,
-              c.updatedAt ?? 0
-            ]
+             VALUES ($id, $name, $conceptId, $updatedAt)`,
+            {
+              $id: c.id,
+              $name: c.name,
+              $conceptId: c.conceptId ?? null,
+              $updatedAt: c.updatedAt ?? 0
+            }
           );
         } catch (e: any) {
           console.error('[Sync] CATEGORY upsert failed:', e.message, '| Record:', JSON.stringify(c));
@@ -165,15 +174,21 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO products (id, name, category_id, price, is_active, requires_mods, packaging_sku, kitchen_label, recipe_id, inventory_item_id, updated_at, deleted_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              p.id, p.name, p.categoryId ?? null,
-              p.price, p.isActive ? 1 : 0,
-              p.requiresMods ? 1 : 0, p.packagingSku ?? null,
-              p.kitchenLabel ?? null, p.recipeId ?? null,
-              p.inventoryItemId ?? null, p.updatedAt ?? 0,
-              p.deletedAt ?? null
-            ]
+             VALUES ($id, $name, $categoryId, $price, $isActive, $requiresMods, $packagingSku, $kitchenLabel, $recipeId, $inventoryItemId, $updatedAt, $deletedAt)`,
+            {
+              $id: p.id,
+              $name: p.name,
+              $categoryId: p.categoryId ?? null,
+              $price: p.price,
+              $isActive: p.isActive ? 1 : 0,
+              $requiresMods: p.requiresMods ? 1 : 0,
+              $packagingSku: p.packagingSku ?? null,
+              $kitchenLabel: p.kitchenLabel ?? null,
+              $recipeId: p.recipeId ?? null,
+              $inventoryItemId: p.inventoryItemId ?? null,
+              $updatedAt: p.updatedAt ?? 0,
+              $deletedAt: p.deletedAt ?? null
+            }
           );
         } catch (e: any) {
           console.error('[Sync] PRODUCT upsert failed:', e.message, '| Record:', JSON.stringify(p));
@@ -190,13 +205,17 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO modifier_options (id, group_id, name, price, kitchen_label, recipe_id, inventory_item_id, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              m.id, m.groupId ?? null, m.name,
-              m.price ?? 0, m.kitchenLabel ?? null,
-              m.recipeId ?? null, m.inventoryItemId ?? null,
-              m.updatedAt ?? 0
-            ]
+             VALUES ($id, $groupId, $name, $price, $kitchenLabel, $recipeId, $inventoryItemId, $updatedAt)`,
+            {
+              $id: m.id,
+              $groupId: m.groupId ?? null,
+              $name: m.name,
+              $price: m.price ?? 0,
+              $kitchenLabel: m.kitchenLabel ?? null,
+              $recipeId: m.recipeId ?? null,
+              $inventoryItemId: m.inventoryItemId ?? null,
+              $updatedAt: m.updatedAt ?? 0
+            }
           );
         } catch (e: any) {
           console.error('[Sync] MODIFIER_OPTION upsert failed:', e.message, '| Record:', JSON.stringify(m));
@@ -213,13 +232,18 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO inventory_items (id, name, type, stock_unit, cost_per_unit, stock_kitchen, stock_stand, preferred_supplier_id, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              i.id, i.name, i.type, i.stockUnit,
-              i.costPerUnit ?? 0, i.stockKitchen ?? 0,
-              i.stockStand ?? 0, i.preferredSupplierId ?? null,
-              i.updatedAt ?? 0
-            ]
+             VALUES ($id, $name, $type, $stockUnit, $costPerUnit, $stockKitchen, $stockStand, $preferredSupplierId, $updatedAt)`,
+            {
+              $id: i.id,
+              $name: i.name,
+              $type: i.type,
+              $stockUnit: i.stockUnit,
+              $costPerUnit: i.costPerUnit ?? 0,
+              $stockKitchen: i.stockKitchen ?? 0,
+              $stockStand: i.stockStand ?? 0,
+              $preferredSupplierId: i.preferredSupplierId ?? null,
+              $updatedAt: i.updatedAt ?? 0
+            }
           );
         } catch (e: any) {
           console.error('[Sync] INVENTORY_ITEM upsert failed:', e.message, '| Record:', JSON.stringify(i));
@@ -236,12 +260,15 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO users (id, name, role, pin_hash, updated_at, deleted_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-              u.id, u.name, u.role,
-              u.pinHash ?? null, u.updatedAt ?? 0,
-              u.deletedAt ?? null
-            ]
+             VALUES ($id, $name, $role, $pinHash, $updatedAt, $deletedAt)`,
+            {
+              $id: u.id,
+              $name: u.name,
+              $role: u.role,
+              $pinHash: u.pinHash ?? null,
+              $updatedAt: u.updatedAt ?? 0,
+              $deletedAt: u.deletedAt ?? null
+            }
           );
         } catch (e: any) {
           console.error('[Sync] USER upsert failed:', e.message, '| Record:', JSON.stringify(u));
@@ -255,14 +282,19 @@ export class SyncEngine {
         try {
           rawDb.run(
             `REPLACE INTO loyalty_profiles (id, card_number, customer_name, phone, current_points, total_points_earned, current_tier_id, is_physical_card, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              l.id, l.cardNumber ?? null, l.customerName ?? null,
-              l.phone ?? null, l.currentPoints ?? 0,
-              l.totalPointsEarned ?? 0, l.currentTierId ?? null,
-              l.isPhysicalCard ? 1 : 0, l.createdAt ?? null,
-              l.updatedAt ?? 0
-            ]
+             VALUES ($id, $cardNumber, $customerName, $phone, $currentPoints, $totalPointsEarned, $currentTierId, $isPhysicalCard, $createdAt, $updatedAt)`,
+            {
+              $id: l.id,
+              $cardNumber: l.cardNumber ?? null,
+              $customerName: l.customerName ?? null,
+              $phone: l.phone ?? null,
+              $currentPoints: l.currentPoints ?? 0,
+              $totalPointsEarned: l.totalPointsEarned ?? 0,
+              $currentTierId: l.currentTierId ?? null,
+              $isPhysicalCard: l.isPhysicalCard ? 1 : 0,
+              $createdAt: l.createdAt ?? null,
+              $updatedAt: l.updatedAt ?? 0
+            }
           );
         } catch (e: any) {
           console.error('[Sync] LOYALTY_PROFILE upsert failed:', e.message, '| Record:', JSON.stringify(l));
