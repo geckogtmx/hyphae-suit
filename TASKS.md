@@ -1,65 +1,59 @@
-# 📝 Active Tasks (V2 Execution)
+# 📝 Active Tasks (CORE Focus + V2 Execution)
 
-> **Focus**: Phase 4 - The Hive Sync, AI Utility & Hardware
-> **Status**: Steps 1 & 2 Complete ✅, Moving to Hardware & AI Tools
-> **Last Updated**: 2026-02-23
+> **Focus**: Finalizing CORE (Phase 1 stragglers) & Phase 4 AI Integrations
+> **Last Updated**: 2026-02-24
 > **Blueprint**: `DEVELOPMENT_PLAN_V2.md`
 
 ---
 
-### Catalog Level 1 CRUD (Current Active Task)
-- [x] Create Concept (Mode) Management Interface
-- [x] Implement backend API endpoints for Concepts and Categories
-- [x] Link Sequences to dynamically created Categories within active Concept
+## 🎯 Phase 1 (CORE Application Stragglers)
+*Goal: Complete all structural responsibilities originally assigned to the CORE Master Node before focusing fully on peripheral apps.*
 
-### CORE CRUD Fixes (Completed)
-- [x] Fix Product Deletion (ensure permanent deletion from catalog)
-- [x] Fix Recipe Deletion
-- [x] Implement an In/Out log for manual Stock Modifications with a reason
+- [x] **Supply Orders (Purchase Orders)**
+  - Finish implementing the UI for Vendor & Supply Ordering (`supplyOrders`).
+  - Integrate a Purchase Order generation workflow that connects low stock to preferred suppliers.
+  - **IMPLEMENTED**: Created the `SuppliersView.tsx` with full CRUD for Vendors, alongside manual and auto-draft PO generation.
+- [x] **The Mathematical Forecast Engine**
+  - **IMPLEMENTED**: Created the `pregForecasts` and `prepForecastItems` data architecture. Overhauled the `ForecastView` to support calendar scheduling, multi-instance plans, interactive item mapping, and integration with the backend `runForecast` atomic explosion service. Saved instances are persisted safely in the DB.
+- [x] **Fleet & Labor Aggregation**
+  - "Implicitly calculating Time & Attendance based on login/logout timestamps across all peripheral nodes (POS, BOH)."
+  - Wire up a proper UI view in the CORE Fleet/Dashboard section to display active/historical labor data synced from the nodes.
+  - **IMPLEMENTED**: Created the `labor_shifts` and relational sync schema. Generated the `FleetView` monitoring hub to inspect topology states and active human workflows.
 
-### Terminal Hardware Pipelines (Completed)
-*Goal: Define agnostic inputs for external payment processors and introduce local receipt printing.*
+---
 
-- [x] Implement ESC/POS printer driver (Web Bluetooth/USB) for exact receipt production directly from the POS tablet.
-- [x] Stub the Clip / Mercado Libre payment gateway interfaces inside the POS checkout flow.
-
-### Phase 4.4: High-Value AI Tools (Current Active Task)
+## 🎯 Phase 4.4: High-Value AI Tools (Current Active Phase)
 *Goal: Integrate 5-Star AI operational helpers across the ecosystem.*
 
-- [ ] **AI Integrations**:
-  - [x] Deploy the AI Bookkeeper (CORE).
-  - [x] Predictive Prep Forecasting (CORE->BOH).
-  - [ ] Invoice OCR Ingestion (BOH).
-  - [ ] Kitchen Shorthand generation (BOH/KDS) (Validate existing `/api/kitchen-note` endpoint and expand).
+- [x] Deploy the AI Bookkeeper (CORE).
+- [x] Predictive Prep Forecasting (CORE->BOH).
+- [ ] **Invoice OCR Ingestion (BOH -> API)**
+  - Implement an endpoint inside `apps/api` to ingest snapped photos/PDFs of supplier invoices and parse them into `inventoryTransactions` using Gemini AI.
+  - Implement the BOH Tablet UI for capturing these invoices.
+- [ ] **Kitchen Shorthand Generation (BOH/KDS)**
+  - Validate and expand the existing `/api/kitchen-note` endpoint to format incoming complex POS tickets into concise 20-character shorthands for the prep kitchen.
+
+---
 
 ## 🎯 Phase 4.5: Solidification & Testing
-*Goal: Ensure robustness of the newly established Sync and Disposition systems.*
+*Goal: Ensure robustness of the newly established Sync and Logistics systems.*
 
-- [ ] **Testing & Polish**:
-  - [ ] Implement comprehensive Vitest coverage for `InventoryService` and backend logic.
-  - [ ] Add subtle micro-animations for enhanced user experience in BOH components.
+- [ ] **Testing & Coverage**:
+  - Implement comprehensive Vitest coverage for `InventoryService` and backend order explosion logic.
+- [ ] **UI Polish**:
+  - Add subtle micro-animations for enhanced user experience in BOH components.
 
 ---
 
 # ✅ Completed Tasks
 
 <details>
-<summary>Phase 3: Localizing the POS (The Unbreakable Stand)</summary>
+<summary>Phase 3 & 4 (POS Sync, Hardware, & AI First Pass)</summary>
 
-- [x] Local Database Engine: Integrated LibSQL WASM with OPFS persistence into `apps/pos`.
-- [x] Seed & Pull: Built the `/api/sync/pull` delta-sync protocol.
-- [x] Cart Logic & Local Storage: Refactored Repositories to use local SQLite.
-- [x] The Vault (Shift Hub): Added background Push logic to SyncEngine.
-- [x] Offline Authentication: Implemented offline PIN fallback.
-- [x] Resolved all strict TypeScript compilation errors in the POS application.
-</details>
-
-<details>
-<summary>Phase 4 Steps 1 & 2 (Sync & Logistics)</summary>
-
-- [x] **Master Sync / SyncEngine V2**: Implemented atomic upserts, FK ordering, and delta sync endpoints.
+- [x] **Terminal Hardware**: Implemented ESC/POS printer driver (Web Bluetooth/USB) and Clip/Mercado Libre receipt generation inside POS.
+- [x] **Intelligence View**: Overhauled `apps/core/App.tsx` AI Hub, integrating the AI Bookkeeper and Predictive Forecaster API endpoints.
+- [x] **Fastify Stability**: Resolved fatal duplicate route exceptions inside `apps/api`.
 - [x] **The Explosion Engine**: Implemented `POST /order/checkout` idempotency, deducting PREP ingredients from STAND on sync.
-- [x] **BOH Supplier Reception UI**: Completed goods reception component.
 - [x] **BOH Disposition System**: Established `CONVERSION_OUT`/`IN` vs `WASTE` logic.
-- [x] Local database test environments (`db.test.ts`) synced to use `sql.js` WASM via `sqlite-proxy`.
+- [x] **POS Local Database Engine**: Integrated LibSQL WASM with OPFS persistence.
 </details>

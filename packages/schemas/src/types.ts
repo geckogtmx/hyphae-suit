@@ -258,3 +258,26 @@ export interface LoyaltyProfile {
     recentTransactions?: LoyaltyTransaction[];
     activeCard?: LoyaltyCard; // Hydrated currently used card
 }
+
+// --- FORECASTING ---
+
+export interface PrepForecastItem {
+    id: string;
+    forecastId: string;
+    productId: string;
+    targetQuantity: number;
+    // Hydrated
+    product?: Product;
+}
+
+export type PrepForecastStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED';
+
+export interface PrepForecast {
+    id: string;
+    name: string;
+    targetDate: number; // Unix timestamp for the target day
+    status: PrepForecastStatus;
+    updatedAt: number;
+    // Hydrated
+    items?: PrepForecastItem[];
+}

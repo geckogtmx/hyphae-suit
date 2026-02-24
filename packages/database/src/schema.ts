@@ -372,3 +372,55 @@ export const loyaltyTransactionsRelations = relations(loyaltyTransactions, ({ on
     references: [orders.id],
   }),
 }));
+
+// --- FORECASTING ---
+
+export const prepForecasts = sqliteTable('prep_forecasts', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  targetDate: integer('target_date').notNull(),
+  status: text('status').notNull().default('ACTIVE'), // DRAFT, ACTIVE, COMPLETED
+  updatedAt: integer('updated_at').notNull().default(0),
+});
+
+export const prepForecastItems = sqliteTable('prep_forecast_items', {
+  id: text('id').primaryKey(),
+  forecastId: text('forecast_id').notNull().references(() => prepForecasts.id),
+  productId: text('product_id').notNull().references(() => products.id),
+  targetQuantity: integer('target_quantity').notNull(),
+});
+
+export const prepForecastsRelations = relations(prepForecasts, ({ many }) => ({
+  items: many(prepForecastItems),
+}));
+
+export const prepForecastItemsRelations = relations(prepForecastItems, ({ one }) => ({
+  forecast: one(prepForecasts, {
+    fields: [prepForecastItems.forecastId],
+    references: [prepForecasts.id]
+  }),
+  product: one(products, {
+    fields: [prepForecastItems.productId],
+    references: [products.id]
+  }),
+}));
+
+// --- LABOR & FLEET ---
+
+export const laborShifts = sqliteTable('labor_shifts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  nodeId: text('node_id').notNull(), // e.g. 'POS_1', 'BOH_1'
+  role: text('role').notNull(), // 'Cashier', 'Kitchen'
+  status: text('status').notNull().default('ACTIVE'), // ACTIVE, CLOSED
+  clockInTime: integer('clock_in_time').notNull(),
+  clockOutTime: integer('clock_out_time'),
+  totalMinutes: integer('total_minutes'),
+});
+
+export const laborShiftsRelations = relations(laborShifts, ({ one }) => ({
+  user: one(users, {
+    fields: [laborShifts.userId],
+    references: [users.id],
+  }),
+}));

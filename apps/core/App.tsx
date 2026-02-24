@@ -4,6 +4,7 @@ import { SuppliersView } from './views/SuppliersView';
 import { InventoryView } from './views/InventoryView';
 import { RecipesView } from './views/RecipesView';
 import { ForecastView } from './views/ForecastView';
+import { FleetView } from './views/FleetView';
 
 import {
    LayoutDashboard,
@@ -871,24 +872,7 @@ const ProductConfigView = () => {
 
 // InventoryView moved to ./views/InventoryView.tsx
 
-const DevicesView = ({ devices }: { devices: DeviceState[] }) => (
-   <GlassViewWrapper title="Device Fleet" icon={Server}>
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-         {devices.map(d => (
-            <div key={d.id} className="bg-black/30 border border-white/10 rounded-xl p-6 flex items-center gap-4">
-               <div className={`p-3 rounded-full ${d.status === 'online' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`}>
-                  <Wifi size={24} />
-               </div>
-               <div>
-                  <h3 className="font-bold text-white">{d.name}</h3>
-                  <div className="text-xs text-gray-500 font-mono mt-1">BATTERY: {d.batteryLevel}% | VERSION: {d.appVersion}</div>
-               </div>
-            </div>
-         ))}
-      </div>
-   </GlassViewWrapper>
-);
-
+// FleetView moved to ./views/FleetView.tsx
 // --- MAIN APP ---
 
 const App = () => {
@@ -937,7 +921,7 @@ const App = () => {
                {activeView === 'kitchen' && <RecipesView />}
                {activeView === 'suppliers' && <SuppliersView />}
                {activeView === 'forecast' && <ForecastView />}
-               {activeView === 'devices' && <DevicesView devices={devices} />}
+               {activeView === 'devices' && <FleetView devices={devices} />}
             </main>
          </div>
       </ErrorBoundary>

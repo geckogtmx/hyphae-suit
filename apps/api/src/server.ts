@@ -1837,6 +1837,114 @@ server.post('/api/ai/forecast', async (request, reply) => {
 });
 
 
+// --- LABOR & FLEET ---
+server.get('/api/labor-shifts', async (request, reply) => {
+    try {
+        const shifts = await db.query.laborShifts.findMany({
+            with: { user: true },
+            orderBy: (s, { desc }) => [desc(s.clockInTime)]
+        });
+        return shifts;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch labor shifts' });
+    }
+});
+
+// --- FORECASTS (Mathematical Planner) ---
+server.get('/api/forecasts', async (request, reply) => {
+    try {
+        const forecasts = await db.query.prepForecasts.findMany({
+            with: {
+                items: {
+                    with: { product: true }
+                }
+            },
+            orderBy: (f, { asc }) => [asc(f.targetDate)]
+        });
+        return forecasts;
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch forecasts' });
+    }
+});
+
+server.post('/api/forecasts', async (request, reply) => {
+    const payload = request.body as any;
+    try {
+        const forecastId = `fct_${Date.now()}`;
+        await db.transaction(async (tx) => {
+            await tx.insert(schema.prepForecasts).values({
+                id: forecastId,
+                name: payload.name || 'New Forecast',
+                targetDate: payload.targetDate,
+                updatedAt: Date.now()
+            });
+
+            if (payload.items && payload.items.length > 0) {
+                const itemsToInsert = payload.items.map((i: any) => ({
+                    id: `fi_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    forecastId,
+                    productId: i.productId,
+                    targetQuantity: i.targetQuantity
+                }));
+                await tx.insert(schema.prepForecastItems).values(itemsToInsert);
+            }
+        });
+        return { success: true, id: forecastId };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to create forecast' });
+    }
+});
+
+server.put('/api/forecasts/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const payload = request.body as any;
+    try {
+        await db.transaction(async (tx) => {
+            await tx.update(schema.prepForecasts)
+                .set({
+                    name: payload.name,
+                    targetDate: payload.targetDate,
+                    status: payload.status,
+                    updatedAt: Date.now()
+                })
+                .where(eq(schema.prepForecasts.id, id));
+
+            // Replace items entirely
+            await tx.delete(schema.prepForecastItems).where(eq(schema.prepForecastItems.forecastId, id));
+            if (payload.items && payload.items.length > 0) {
+                const itemsToInsert = payload.items.map((i: any) => ({
+                    id: `fi_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                    forecastId: id,
+                    productId: i.productId,
+                    targetQuantity: i.targetQuantity
+                }));
+                await tx.insert(schema.prepForecastItems).values(itemsToInsert);
+            }
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update forecast' });
+    }
+});
+
+server.delete('/api/forecasts/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        await db.transaction(async (tx) => {
+            await tx.delete(schema.prepForecastItems).where(eq(schema.prepForecastItems.forecastId, id));
+            await tx.delete(schema.prepForecasts).where(eq(schema.prepForecasts.id, id));
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to delete forecast' });
+    }
+});
+
 // START
 const start = async () => {
     try {

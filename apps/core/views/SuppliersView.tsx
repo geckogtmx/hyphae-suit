@@ -74,6 +74,62 @@ export const SuppliersView = () => {
         }
     };
 
+    const handleAutoDraftLowStock = async () => {
+        if (!confirm('This will scan all inventory to generate draft purchase orders for items under Par level. Continue?')) return;
+        setLoading(true);
+        try {
+            // Find low stock items with preferred suppliers
+            const lowStockItems = inventory.filter(i => {
+                const totalStock = (i.stockKitchen || 0) + (i.stockStand || 0);
+                const par = i.parLevel || 20; // Default par
+                return totalStock <= par && i.preferredSupplierId;
+            });
+
+            if (lowStockItems.length === 0) {
+                alert("No inventory items found below Par Level with a Preferred Supplier assigned.");
+                setLoading(false);
+                return;
+            }
+
+            // Group by supplier
+            const groups: Record<string, any[]> = {};
+            lowStockItems.forEach(item => {
+                const supId = item.preferredSupplierId;
+                if (!groups[supId]) groups[supId] = [];
+                groups[supId].push(item);
+            });
+
+            // Create draft POs
+            for (const [supplierId, items] of Object.entries(groups)) {
+                const orderData = {
+                    supplierId,
+                    status: 'DRAFT',
+                    items: items.map(i => {
+                        const current = (i.stockKitchen || 0) + (i.stockStand || 0);
+                        const required = Math.max((i.parLevel || 20) - current, 5); // Pad to ensure we order at least 5
+                        return {
+                            inventoryItemId: i.id,
+                            quantityOrdered: required,
+                            cost: i.costPerUnit || 0
+                        };
+                    }),
+                    totalCost: 0
+                };
+                orderData.totalCost = orderData.items.reduce((sum, item) => sum + (item.quantityOrdered * item.cost), 0);
+                await ApiClient.createSupplyOrder(orderData);
+            }
+
+            const ordData = await ApiClient.getSupplyOrders();
+            setOrders(ordData);
+            alert(`Auto-Drafted ${Object.keys(groups).length} Purchase Orders.`);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to auto-draft orders.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (loading) return <div className="p-8 text-white font-mono animate-pulse">Loading Supply Chain Network...</div>;
 
     return (
@@ -113,12 +169,20 @@ export const SuppliersView = () => {
                         <Plus size={16} /> ADD VENDOR
                     </button>
                 ) : (
-                    <button
-                        onClick={() => setEditingOrder({ items: [] })}
-                        className="bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-sm transition-colors shadow-[0_0_15px_rgba(132,204,22,0.1)]"
-                    >
-                        <Plus size={16} /> NEW PO
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleAutoDraftLowStock}
+                            className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-sm transition-colors shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                        >
+                            <ListChecks size={16} /> AUTO-DRAFT LOW STOCK
+                        </button>
+                        <button
+                            onClick={() => setEditingOrder({ items: [] })}
+                            className="bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-sm transition-colors shadow-[0_0_15px_rgba(132,204,22,0.1)]"
+                        >
+                            <Plus size={16} /> NEW PO
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -193,8 +257,8 @@ export const SuppliersView = () => {
                                 <div className="flex items-center gap-3 mb-1">
                                     <h4 className="text-lg font-bold text-white">{order.supplier?.name || 'Unknown Vendor'}</h4>
                                     <div className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${order.status === 'RECEIVED' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                                            order.status === 'PLACED' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
-                                                'text-brand border-brand/30 bg-brand/10'
+                                        order.status === 'PLACED' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' :
+                                            'text-brand border-brand/30 bg-brand/10'
                                         }`}>
                                         {order.status}
                                     </div>

@@ -495,5 +495,83 @@ export const ApiClient = {
             console.error('Failed to transfer inventory', error);
             throw error;
         }
+    },
+
+    // --- LABOR & FLEET ---
+    async getLaborShifts() {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/labor-shifts`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch labor shifts');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch labor shifts', error);
+            return [];
+        }
+    },
+
+    // --- FORECASTS ---
+    async getForecasts() {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/forecasts`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch forecasts');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch forecasts', error);
+            return [];
+        }
+    },
+
+    async createForecast(forecast: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/forecasts`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(forecast)
+            });
+            if (!response.ok) throw new Error('Failed to create forecast');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to create forecast', error);
+            throw error;
+        }
+    },
+
+    async updateForecast(id: string, forecast: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/forecasts/${id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(forecast)
+            });
+            if (!response.ok) throw new Error('Failed to update forecast');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to update forecast', error);
+            throw error;
+        }
+    },
+
+    async deleteForecast(id: string) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/forecasts/${id}`, {
+                method: 'DELETE',
+                headers
+            });
+            if (!response.ok) throw new Error('Failed to delete forecast');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to delete forecast', error);
+            throw error;
+        }
     }
 };
