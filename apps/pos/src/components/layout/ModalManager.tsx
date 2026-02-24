@@ -7,8 +7,9 @@
  */
 
 import React from 'react';
-import { Settings, ChevronRight, AlertCircle, LogOut } from 'lucide-react';
+import { Settings, ChevronRight, AlertCircle, LogOut, Printer } from 'lucide-react';
 import HistoryModal from '../HistoryModal';
+import { HardwareSettingsModal } from '../HardwareSettingsModal';
 
 interface ModalManagerProps {
   activeModal: string | null;
@@ -42,6 +43,8 @@ const ModalManager: React.FC<ModalManagerProps> = ({
 
       {activeModal === 'Order History' && <HistoryModal onClose={() => setActiveModal(null)} />}
 
+      {activeModal === 'HardwareSettings' && <HardwareSettingsModal onClose={() => setActiveModal(null)} />}
+
       {activeModal === 'SettingsMenu' && (
         <div className="relative bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl shadow-2xl w-64 animate-in zoom-in-95 duration-100">
           <div className="flex flex-col space-y-1">
@@ -51,6 +54,17 @@ const ModalManager: React.FC<ModalManagerProps> = ({
             >
               <span>Settings</span>
               <Settings
+                size={14}
+                className="text-zinc-400 group-hover:text-lime-600 dark:group-hover:text-lime-400"
+              />
+            </button>
+            <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full" />
+            <button
+              onClick={() => setActiveModal('HardwareSettings')}
+              className="w-full text-left px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors flex justify-between items-center group rounded-lg"
+            >
+              <span>Printers Hardware</span>
+              <Printer
                 size={14}
                 className="text-zinc-400 group-hover:text-lime-600 dark:group-hover:text-lime-400"
               />

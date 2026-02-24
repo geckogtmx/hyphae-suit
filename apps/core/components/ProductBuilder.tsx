@@ -343,10 +343,12 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                         {sequences.map((s) => {
                             const isSelected = selectedSequenceId === s.id;
                             return (
-                                <button
+                                <div
                                     key={s.id}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => handleSelectSequence(s.id)}
-                                    className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between group whitespace-nowrap ${isSelected ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                    className={`w-full text-left px-3 py-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-between group whitespace-nowrap cursor-pointer ${isSelected ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
                                 >
                                     <div className="flex items-center justify-between group-hover:px-1 transition-all flex-1 min-w-0">
                                         <div className="flex items-center space-x-3 min-w-0">
@@ -400,7 +402,7 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                             {isSelected && <ChevronRight size={16} className="shrink-0" />}
                                         </div>
                                     </div>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
@@ -451,12 +453,29 @@ export const ProductBuilder: React.FC<ProductBuilderProps> = ({
                                                 {isActiveStepRoot ? 'Sequence / Item Name' : 'Step Name'}
                                             </label>
                                             {isActiveStepRoot ? (
-                                                <input
-                                                    type="text"
-                                                    value={activeSequence.name}
-                                                    onChange={(e) => updateRootItem({ name: e.target.value })}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-brand outline-none font-bold"
-                                                />
+                                                <div className="space-y-4">
+                                                    <input
+                                                        type="text"
+                                                        value={activeSequence.name}
+                                                        onChange={(e) => updateRootItem({ name: e.target.value })}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-brand outline-none font-bold"
+                                                    />
+
+                                                    <div>
+                                                        <label className="block text-xs font-mono text-gray-500 mb-1">
+                                                            Category
+                                                        </label>
+                                                        <select
+                                                            value={activeSequence.categoryId}
+                                                            onChange={(e) => updateRootItem({ categoryId: e.target.value })}
+                                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none"
+                                                        >
+                                                            {categories.map(c => (
+                                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
                                             ) : (
                                                 <input
                                                     type="text"

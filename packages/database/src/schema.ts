@@ -204,7 +204,7 @@ export const payments = sqliteTable('payments', {
 export const orderItems = sqliteTable('order_items', {
   id: text('id').primaryKey(),
   orderId: text('order_id').notNull().references(() => orders.id),
-  productId: text('product_id').notNull().references(() => products.id),
+  productId: text('product_id').references(() => products.id),
   name: text('name').notNull(), // Snapshot
   price: real('price').notNull(), // Snapshot
   quantity: integer('quantity').default(1),

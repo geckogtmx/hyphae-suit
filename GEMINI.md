@@ -53,10 +53,28 @@ The following rules are enforced across the entire monorepo:
 - **Goal**: Replace generic `idb` with a true offline LibSQL WASM local replica sync engine.
 - LibSQL WASM + OPFS integrated into `apps/pos`. `MenuRepository` & `OrderRepository` use local DB. `AuthService` has offline PIN fallback. `SyncEngine` implements full Pull/Push cycle.
 
-### 🟡 Phase 4: The Hive Sync, AI Utility & Hardware (ACTIVE — Step 1 Complete)
+### 🟡 Phase 4: The Hive Sync, AI Utility & Hardware (ACTIVE — Step 3 Complete, 4.4 In Progress)
 - **Step 1 (DONE)**: The Explosion Engine. `POST /api/order/checkout` is now idempotent. Inventory depleted on sync. Loyalty awarded. BOH notified via WebSocket. `GET /api/orders` & `GET /api/orders/:id` added. Sync pipeline verified end-to-end (`since=0` → 12 products, 3 categories, 26 modifiers, 27 inv items, 3 users, 4 loyalty).
-- **Step 2 (Next)**: BOH Supplier Reception UI. Add `suppliers` + `modifierGroups` to `/api/sync/pull`.
-- **Step 3**: Hardware — ESC/POS printer & Mexican payment gateway (Clip/Mercado Libre).
+- **Step 2 (DONE)**: BOH Supplier Reception UI. Add `suppliers` + `modifierGroups` to `/api/sync/pull`.
+- **Step 3 (DONE)**: Hardware — ESC/POS printer & Mexican payment gateway (Clip/Mercado Libre) abstractions established in POS.
+- **Phase 4.4 (ACTIVE)**: High-Value AI Tools. AI Bookkeeper, Predictive Forecaster integrated into CORE. Pending: Invoice OCR Ingestion (BOH) and Kitchen Shorthand generation (BOH/KDS).
+
+### 🌪️ Phase 5: Mobile Ecosystem Expansion (Future)
+- **Goal**: Deploy Market App, Patron App, OCR Parsing, and Predictive Forecasting.
+
+### 🎨 Phase 6: UI Homologation (Future)
+- **Goal**: Extract the styling from `apps/pos` into `@hyphae/ui` and apply the exact look-and-feel globally to all other nodes.
+
+## 5. Technical SOPs
+
+- [x] SOP-001: Header Injection (Core Files)
+- [x] SOP-002: Function Decomposition
+- [x] SOP-003: Secret Migration
+- [x] SOP-004: Monorepo Shared Types Migration
+
+## 6. Maintenance Log
+
+- **2026-02-24**: **Phase 4 Step 3 & 4.4 Active**. Implemented native ESC/POS printer utility layer via Web Bluetooth/USB inside `apps/pos`. Built Clip/Mercado Libre simulated payment stub integrations into checkout flow to block cash input dynamically. Rewrote `IntelligenceView` in `apps/core` to consume new backend `POST /api/ai/chat` (Bookkeeper analytics) and `POST /api/ai/forecast` (Pre-prep optimization) via Gemini. Identified and fixed a fatal duplicate routing error for `/api/concepts` inside Fastify that broke CORE item deletion and CRUD loops. Fixed `drizzle-orm` TS issues related to unit types in inventory schemas.
 
 ### 🌪️ Phase 5: Mobile Ecosystem Expansion (Future)
 - **Goal**: Deploy Market App, Patron App, OCR Parsing, and Predictive Forecasting.

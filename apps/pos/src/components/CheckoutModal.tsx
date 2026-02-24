@@ -64,6 +64,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const { isProcessing, error: checkoutError } = useCheckout();
   const [step, setStep] = useState<CheckoutStep>('ORDER_REVIEW');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [terminalStatus, setTerminalStatus] = useState<'IDLE' | 'WAITING_FOR_CARD' | 'AUTHORIZING' | 'APPROVED' | 'DECLINED'>('IDLE');
 
   const [activeInput, setActiveInput] = useState<'PRIMARY' | 'TIP'>('PRIMARY');
   const [tenderedValue, setTenderedValue] = useState('');
@@ -166,11 +167,35 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   };
 
+  const simulateTerminalPayment = async () => {
+    setTerminalStatus('WAITING_FOR_CARD');
+    // Simulate terminal connection and waiting for tap
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setTerminalStatus('AUTHORIZING');
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // 95% success rate for simulation
+    if (Math.random() > 0.05) {
+      setTerminalStatus('APPROVED');
+      const mockTxId = `CLP-${Math.floor(Math.random() * 1000000)}`;
+      setTimeout(() => {
+        onConfirmPayment(selectedMethod!, totalCharge, true, mockTxId, undefined, currentTip);
+      }, 1000);
+    } else {
+      setTerminalStatus('DECLINED');
+      setTimeout(() => {
+        setTerminalStatus('IDLE');
+      }, 3000);
+    }
+  };
+
   const handleStandardConfirm = () => {
-    if (selectedMethod) {
-      const confirmationNum = selectedMethod === 'Clip' ? tenderedValue : undefined;
+    if (selectedMethod === 'Clip' || selectedMethod === 'Transfer') {
+      // Ignore manual entry and use the simulated terminal flow
+      simulateTerminalPayment();
+    } else if (selectedMethod) {
       const tendered = selectedMethod === 'Cash' ? currentTendered : undefined;
-      onConfirmPayment(selectedMethod, totalCharge, true, confirmationNum, tendered, currentTip);
+      onConfirmPayment(selectedMethod, totalCharge, true, undefined, tendered, currentTip);
     }
   };
 
@@ -471,9 +496,10 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
         <div className="flex justify-center mb-6 space-x-4">
           <button
             onClick={() => setActiveInput('PRIMARY')}
-            className={`flex-1 py-3 rounded-xl font-bold uppercase text-xs tracking-wider border-2 transition-all ${activeInput === 'PRIMARY' ? 'border-lime-500 bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400' : 'border-zinc-200 dark:border-zinc-700 text-zinc-400'}`}
+            disabled={selectedMethod === 'Clip' || selectedMethod === 'Transfer'}
+            className={`flex-1 py-3 rounded-xl font-bold uppercase text-xs tracking-wider border-2 transition-all ${selectedMethod === 'Clip' || selectedMethod === 'Transfer' ? 'opacity-50 cursor-not-allowed border-zinc-200 dark:border-zinc-700' : activeInput === 'PRIMARY' ? 'border-lime-500 bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400' : 'border-zinc-200 dark:border-zinc-700 text-zinc-400'}`}
           >
-            {selectedMethod === 'Cash' ? 'Cash Tendered' : 'Ref Number'}
+            {selectedMethod === 'Cash' ? 'Cash Tendered' : 'Gateway Terminal'}
           </button>
           <button
             onClick={() => {
@@ -594,26 +620,40 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
             onClick={handleStandardConfirm}
             disabled={
               isProcessing ||
-              (selectedMethod === 'Cash' && changeDue < 0) ||
-              (selectedMethod === 'Clip' && tenderedValue.length === 0)
+              terminalStatus !== 'IDLE' ||
+              (selectedMethod === 'Cash' && changeDue < 0)
             }
             className={`w-full h-24 rounded-2xl font-bold uppercase tracking-widest text-2xl transition-all shadow-xl hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center
                         ${isProcessing ||
-                (selectedMethod === 'Cash' && changeDue < 0) ||
-                (selectedMethod === 'Clip' && tenderedValue.length === 0)
-                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none'
+                terminalStatus !== 'IDLE' ||
+                (selectedMethod === 'Cash' && changeDue < 0)
+                ? terminalStatus === 'APPROVED' ? 'bg-emerald-500 text-white' : terminalStatus === 'DECLINED' ? 'bg-red-500 text-white' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none'
                 : isRefund
                   ? 'bg-red-500 text-white hover:bg-red-400'
                   : 'bg-lime-500 text-zinc-950 hover:bg-lime-400 shadow-lime-500/30'
               }`}
           >
-            {isProcessing ? (
+            {terminalStatus === 'WAITING_FOR_CARD' ? (
+              <>
+                <CreditCard className="animate-pulse mr-3" size={32} />
+                <span>Tap / Insert Card on Reader</span>
+              </>
+            ) : terminalStatus === 'AUTHORIZING' ? (
+              <>
+                <Loader2 className="animate-spin mr-3" size={32} />
+                <span>Authorizing...</span>
+              </>
+            ) : terminalStatus === 'APPROVED' ? (
+              'APPROVED!'
+            ) : terminalStatus === 'DECLINED' ? (
+              'DECLINED - TRY AGAIN'
+            ) : isProcessing ? (
               <>
                 <Loader2 className="animate-spin mr-3" size={32} />
                 <span>Processing...</span>
               </>
-            ) : selectedMethod === 'Clip' ? (
-              'Process Card & Close'
+            ) : selectedMethod === 'Clip' || selectedMethod === 'Transfer' ? (
+              'Send to Gateway Terminal'
             ) : (
               'Confirm Payment'
             )}

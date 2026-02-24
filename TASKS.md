@@ -7,19 +7,28 @@
 
 ---
 
-## 🎯 Phase 4.3: Terminal Hardware Pipelines
+### Catalog Level 1 CRUD (Current Active Task)
+- [x] Create Concept (Mode) Management Interface
+- [x] Implement backend API endpoints for Concepts and Categories
+- [x] Link Sequences to dynamically created Categories within active Concept
+
+### CORE CRUD Fixes (Completed)
+- [x] Fix Product Deletion (ensure permanent deletion from catalog)
+- [x] Fix Recipe Deletion
+- [x] Implement an In/Out log for manual Stock Modifications with a reason
+
+### Terminal Hardware Pipelines (Completed)
 *Goal: Define agnostic inputs for external payment processors and introduce local receipt printing.*
 
-- [ ] **Hardware Integration**:
-  - [ ] Implement ESC/POS printer driver (Web Bluetooth/USB) for exact receipt production directly from the POS tablet.
-  - [ ] Stub the Clip / Mercado Libre payment gateway interfaces inside the POS checkout flow.
+- [x] Implement ESC/POS printer driver (Web Bluetooth/USB) for exact receipt production directly from the POS tablet.
+- [x] Stub the Clip / Mercado Libre payment gateway interfaces inside the POS checkout flow.
 
-## 🎯 Phase 4.4: High-Value AI Tools
+### Phase 4.4: High-Value AI Tools (Current Active Task)
 *Goal: Integrate 5-Star AI operational helpers across the ecosystem.*
 
 - [ ] **AI Integrations**:
-  - [ ] Deploy the AI Bookkeeper (CORE).
-  - [ ] Predictive Prep Forecasting (CORE->BOH).
+  - [x] Deploy the AI Bookkeeper (CORE).
+  - [x] Predictive Prep Forecasting (CORE->BOH).
   - [ ] Invoice OCR Ingestion (BOH).
   - [ ] Kitchen Shorthand generation (BOH/KDS) (Validate existing `/api/kitchen-note` endpoint and expand).
 

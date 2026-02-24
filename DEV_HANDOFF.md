@@ -1,55 +1,34 @@
 # DEV_HANDOFF.md
 
-> **Last Updated:** 2026-02-23 15:45 CST
+> **Last Updated:** 2026-02-24 13:25 CST
 > **Last Model:** Gemini
-> **Session Focus:** Fixed sql.js bindings, resolved all POS TS errors, rewrote POS db tests, and verified BOH logistics.
+> **Session Focus:** Completed Hardware integration, Integrated Core AI Tools, Fixed Core Mode CRUD
 
 ---
 
 ## ✅ Completed This Session
 
-- **Schema**: Added `updatedAt` / `deletedAt` to all 7 syncable tables — `suppliers`, `inventoryItems`, `recipes`, `products`, `modifierOptions`, `users`, `loyaltyProfiles` (`packages/database/src/schema.ts`)
-- **Schema**: Added `syncedAt` to `orders` table for POS sync tracking
-- **Schema**: Added `orderItemsRelations` back-relation (required for `db.query.orders.findMany({ with: { items } })`)
-- **API — Sync Pull**: Implemented `GET /api/sync/pull?since={ts}` delta endpoint (`apps/api/src/server.ts:161`). Verified returns 12 products, 3 categories, 26 modifier options, 27 inventory items, 3 users, 4 loyalty profiles on `since=0`
-- **API — Explosion Engine**: Upgraded `POST /api/order/checkout` to be fully **idempotent** — uses `onConflictDoUpdate` for orders, `onConflictDoNothing` for payments/loyalty transactions. Safe for POS retry loops (`apps/api/src/server.ts:518`)
-- **API — Order Reads**: Added `GET /api/orders` (paginated + `with: {items, payments}`) and `GET /api/orders/:id` — the Core dashboard can now render order history relationally
-- **POS — Local DB**: Switched `apps/pos/src/db/index.ts` from server-side LibSQL to `@libsql/client/web` (OPFS-persisted browser SQLite)
-- **POS — Repositories**: `MenuRepository` and `OrderRepository` now import `db` from `../db` (local instance) instead of `@hyphae/database` (server instance)
-- **POS — SyncEngine**: Full rewrite of `apps/pos/src/services/SyncEngine.ts` — implements `pullSnapshot()` (atomic upsert of structural data) and `pushOrders()` (upload unsynced orders via checkout endpoint)
-- **POS — AuthService**: Offline PIN fallback — tries CORE API first (3s timeout), then queries local `users` table (`apps/pos/src/services/AuthService.ts`)
-- **Seed**: Added mass `updatedAt = Date.now()` stamp on all syncable tables at end of `seed.ts` — fixes delta sync returning 0 rows on fresh DB
-- **Seed**: Guarded `recipeId` null check in products loop — skips products with no recipe instead of crashing
-- **Types fix** (`packages/schemas/src/types.ts`): Made `RecipeDefinition` operational fields optional (`type`, `category`, `activeTimeMinutes`, `totalTimeMinutes`, `steps`, `equipment`) — seed/assembly records don't carry full culinary metadata
-- **Types fix** (`packages/schemas/src/types.ts`): Added `currentStock?: number` as deprecated alias on `Product` — matches legacy Core data shape, mirrors the same pattern on `InventoryItem`
-- **Schema/Sync**: Fixed `sql.js` parameter binding bug in `apps/pos/src/services/SyncEngine.ts`. Switched from positional `?` parameters to named `$param` parameters for `rawDb.run()`, completely resolving the `NOT NULL constraint failed` errors during bulk SQLite sync.
-- **POS — Types**: Resolved 35 TypeScript compilation errors in `apps/pos` (`tsc --noEmit` verified 0 errors). Added missing fields (`isLoyalty`, `readyAt`, `cookingStartedAt`) to `SavedOrder` interface in `types.ts` and ensured `productId` maps properly to `OrderItem`.
-- **POS — Tests**: Rewrote `apps/pos/src/db/__tests__/db.test.ts` to use `sql.js` WASM via `drizzle-orm/sqlite-proxy` rather than `@libsql/client` remote client, aligning test environment with local Vite implementation.
-- **BOH — Reception/Transfer**: Verified BOH Supplier Reception UI and BOH `InventoryTransfer` (Load Cart / Return Cart) end-to-end functionality. Confirmed `POST /api/inventory/transfer` and `POST /api/inventory/waste` exist in `apps/api/src/server.ts` and accurately deplete `stockKitchen` / `stockStand`.
-- **Seed**: Verified `products.recipeId` seeding null-check guard works successfully.
+- **Hardware**: Added native ESC/POS printer driver (`apps/pos/src/services/hardware/ReceiptService.ts`) operating over Web Bluetooth or WebUSB. 
+- **Hardware Settings UI**: Created `HardwareSettingsModal` in `apps/pos` to allow the user to connect to these printers seamlessly.
+- **Payment Stubs**: Updated `CheckoutModal.tsx` in `apps/pos` to intercept 'Clip' and 'Transfer' payment actions to simulate a realistic payment terminal gateway flow.
+- **AI Analytics Endpoint**: Implemented `POST /api/ai/chat` in `apps/api/src/server.ts` to power the Intelligence View natively. Calculates total sales and transactions on-the-fly for the Bookkeeper agent.
+- **AI Forecasting Endpoint**: Implemented `POST /api/ai/forecast` in `apps/api/src/server.ts` to fetch live inventory counts and recent order history to generate a predictive prep forecast using the Gemini AI API.
+- **Intelligence View UI**: Completely revamped `IntelligenceView` inside `apps/core/App.tsx`. Added toggle modes between `BKP` (Bookkeeper), `FCT` (Predictive Forecaster), and `SOP` models. Wired the `RUN PREDICTIVE FORECAST` trigger.
+- **Bug Fix (Critical)**: Removed duplicate `/api/concepts` and `/api/categories` GET endpoint definitions in `apps/api/src/server.ts` that were causing the Fastify server to crash with `FST_ERR_DUPLICATED_ROUTE`, blocking item deletion and concept creation.
+- **Bug Fix**: Addressed TS type instability with `measurementUnitId` vs `stockUnit` inside `InventoryItem` and adjusted ORM filter clauses using string interpolation templates instead of buggy `gte` import paths on `sqlite-proxy`.
+
 ---
 
 ## ⚠️ Known Issues / Broken
 
-- [ ] **Hardware Integration**: Implement Bluetooth ESC/POS printer driver and USB card reader integrations.
-- [ ] **UI Refresh**: Add subtle micro-animations for enhanced user experience in BOH components.
-
+- [ ] **AI Tools**: Need to implement Invoice OCR Ingestion (BOH) and expand the Kitchen Shorthand generation (BOH/KDS).
 
 ---
 
 ## 🔄 In Progress / Pending
 
-- [ ] **Hardware Integration** (Phase 4 Step 3): ESC/POS printer driver (Web Bluetooth/USB) + Clip/Mercado Libre payment gateway interface stubs
-- [ ] **Testing**: Implement comprehensive Vitest coverage for `InventoryService` and backend logic.
-
-### 📝 Design Decision — Disposition vs. Waste
-"Waste" is a misnomer. In a real food operation, off-spec or surplus inventory has three distinct outcomes:
-1. **TRUE WASTE** — spoilage, spill, contamination → `POST /api/inventory/waste` (deduct only)
-2. **CONVERSION / UPCYCLE** — beef patties → chili → bread pudding → `POST /api/inventory/convert` (deduct source, credit destination)
-3. **OVERPRODUCTION ADJUSTMENT** — covered by inventory adjustment tools
-
-The `WasteLog.convertedTo?: string` field in `types.ts` already anticipated the upcycle case.
-The `inventoryTransactions.type` column is an open `text` — zero schema changes needed; new types `CONVERSION_OUT` and `CONVERSION_IN` are additive.
+- [ ] **Phase 4.4 High-Value AI Tools**: Complete Invoice OCR Ingestion and Kitchen Shorthand.
+- [ ] **Phase 4.5 Solidification & Tests**: Implement comprehensive Vitest coverage.
 
 ---
 
@@ -57,26 +36,27 @@ The `inventoryTransactions.type` column is an open `text` — zero schema change
 
 ### Priority Order
 
-1. **Hardware Integration** — Implement ESC/POS printer driver (Web Bluetooth/USB) and stub the Clip/Mercado Libre payment gateway interfaces for Phase 4 Step 3.
-2. **Review/Extend Tests** — Write integration tests for `InventoryService` and `SyncEngine` covering edge cases.
+1. **AI Extensions**: Complete the Invoice OCR step for Phase 4.4. This will require parsing uploaded PDFs/images using Gemini and updating the DB.
+2. **Review/Extend Tests**: Write integration tests for `InventoryService` and `SyncEngine` covering edge cases.
 
 ### Context Needed
 
-- `DEVELOPMENT_PLAN_V2.md` — full roadmap, read Phase 4 section
-- `apps/api/src/server.ts` line 161 — sync pull endpoint
-- `apps/api/src/services/InventoryService.ts` — all inventory mutations
-- `apps/pos/src/services/SyncEngine.ts` — current Pull/Push implementation
-- `packages/database/src/schema.ts` — source of truth for all tables + relations
+- `DEVELOPMENT_PLAN_V2.md` — full roadmap.
+- `apps/api/src/server.ts` — contains current AI routes (`/api/ai/chat`, `/api/ai/forecast`).
 
 ### Do NOT
 
-- Do NOT delete or reset `sqlite.db` while the API dev server is running — it holds a file lock and deletion will fail silently or error
-- Do NOT add `updatedAt` to junction/child tables (`recipeIngredients`, `concepts`, `modifierGroups`, `productModifiers`, `supplyOrderItems`, `inventoryTransactions`) — they don't have that column in schema and the TypeScript compiler will reject it
-- Do NOT run `db:push --force` with a populated DB unless you've stopped all node processes — always `taskkill /F /IM node.exe /T` first
+- Do NOT delete or reset `sqlite.db` while the API dev server is running.
+- Do NOT add `updatedAt` to junction tables.
 
 ---
 
 ## Session Log (Last 3 Sessions)
+
+### 2026-02-24 — Gemini
+- Implemented Phase 4 Step 3: Hardware (ESC/POS wrapper + simulated Payment Processor routing logic). 
+- Implemented Phase 4.4 AI Tools: Bookkeeper, Predictive Forecaster in `apps/core`.
+- Fixed Fastify duplicate route crash for `apps/core` CRUD logic.
 
 ### 2026-02-23 — Gemini (Late Shift)
 - Fixed `sql.js` parameter binding bug in `apps/pos/src/services/SyncEngine.ts` by replacing `?` positional bindings with `$id` named bindings.
@@ -92,32 +72,7 @@ The `inventoryTransactions.type` column is an open `text` — zero schema change
 - **`apps/pos/vite.config.ts`**: COOP/COEP headers for OPFS
 - **BOH Receiving Screen**: store URLs env-var'd, `alert()` → inline toast, layout fix
 - **BOH Disposition System** — **COMPLETE**:
-  - Design decision: "waste" ≠ disposal; distinction between TRUE WASTE and CONVERSION/UPCYCLE
   - `InventoryService.convertInventory()` — atomic two-sided transaction (CONVERSION_OUT / CONVERSION_IN)
   - `POST /api/inventory/convert` — Zod-validated, rejects same-item source/dest
-  - `DispositionModal.tsx` — Write Off mode (reason picker: expired/damaged/spill/quality/overproduced) + Convert mode (source qty → destination item + qty, yield ratio badge, auto-close on success)
-  - `InventoryDashboard` — stub button replaced with “Dispose / Convert” → opens modal
-- `tsc --noEmit` on `apps/api` → zero errors ✅
-- `tsc --noEmit` on `apps/boh` → zero errors ✅
-
-### 2026-02-22 — Gemini
-- Phase 4 Step 1: The Explosion Engine
-- Upgraded `POST /api/order/checkout` with idempotency + WebSocket BOH notification
-- Added `GET /api/sync/pull`, `GET /api/orders`, `GET /api/orders/:id`
-- POS fully localized: LibSQL WASM, local repositories, SyncEngine v2, offline auth
-- Hardened seed with `updatedAt` stamps on all syncable tables
-- Verified sync pipeline end-to-end: `since=0` → 12 products, 26 mods, 27 inv, 3 users, 4 loyalty
-- Fixed pre-existing TS errors: `RecipeDefinition` fields now optional; `Product.currentStock` alias added
-- `tsc --noEmit` clean on `packages/database` and `apps/api`
-- Commits: `80e98e8` (Explosion Engine), `9509cf3` (schema type fixes)
-
-### 2026-02-22 — Gemini
-- Phase 4 Step 1: The Explosion Engine
-- Upgraded `POST /api/order/checkout` with idempotency + WebSocket BOH notification
-- Added `GET /api/sync/pull`, `GET /api/orders`, `GET /api/orders/:id`
-- POS fully localized: LibSQL WASM, local repositories, SyncEngine v2, offline auth
-- Hardened seed with `updatedAt` stamps on all syncable tables
-- Verified sync pipeline end-to-end: `since=0` → 12 products, 26 mods, 27 inv, 3 users, 4 loyalty
-- Fixed pre-existing TS errors: `RecipeDefinition` fields now optional; `Product.currentStock` alias added
-- `tsc --noEmit` clean on `packages/database` and `apps/api`
-- Commits: `80e98e8` (Explosion Engine), `9509cf3` (schema type fixes)
+  - `DispositionModal.tsx` — Write Off mode (reason picker) + Convert mode
+  - `InventoryDashboard` — stub button replaced with “Dispose / Convert”

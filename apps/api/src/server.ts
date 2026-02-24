@@ -202,25 +202,7 @@ server.get('/api/sync/pull', async (request, reply) => {
     }
 });
 
-// --- DATA ACCESS ROUTES ---
 
-server.get('/api/concepts', async (request, reply) => {
-    try {
-        const concepts = await db.select().from(schema.concepts);
-        return concepts;
-    } catch (e) {
-        reply.code(500).send({ error: "Failed to fetch concepts" });
-    }
-});
-
-server.get('/api/categories', async (request, reply) => {
-    try {
-        const categories = await db.select().from(schema.categories);
-        return categories;
-    } catch (e) {
-        reply.code(500).send({ error: "Failed to fetch categories" });
-    }
-});
 
 // --- SUPPLIER ROUTES ---
 server.get('/api/suppliers', async (request, reply) => {
@@ -1184,6 +1166,14 @@ server.put('/api/recipes/:id', async (request, reply) => {
 server.delete('/api/recipes/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     try {
+        const linkedProduct = await db.query.products.findFirst({
+            where: eq(schema.products.recipeId, id)
+        });
+
+        if (linkedProduct) {
+            return reply.code(400).send({ error: 'Cannot delete recipe because it is currently assigned to a product. Please permanently delete the product first.' });
+        }
+
         await db.transaction(async (tx) => {
             await tx.delete(schema.recipeIngredients).where(eq(schema.recipeIngredients.recipeId, id));
             await tx.delete(schema.recipeSteps).where(eq(schema.recipeSteps.recipeId, id));
@@ -1251,7 +1241,24 @@ server.put('/api/inventory/item/:id', async (request, reply) => {
 
         // Apply live stock adjustment if provided
         if (item.stockKitchen !== undefined && item.stockKitchen !== null) {
-            updatePayload.stockKitchen = item.stockKitchen;
+            const currentItem = await db.query.inventoryItems.findFirst({
+                where: eq(schema.inventoryItems.id, id)
+            });
+
+            if (currentItem && currentItem.stockKitchen !== item.stockKitchen) {
+                const delta = item.stockKitchen - (currentItem.stockKitchen || 0);
+                updatePayload.stockKitchen = item.stockKitchen;
+
+                await db.insert(schema.inventoryTransactions).values({
+                    id: `tx_adj_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                    inventoryItemId: id,
+                    type: 'ADJUSTMENT',
+                    quantity: delta,
+                    reason: item.adjustmentReason || 'Manual adjustment via Dashboard',
+                    referenceId: `adj_${Date.now()}`,
+                    timestamp: Date.now()
+                });
+            }
         }
 
         await db.update(schema.inventoryItems)
@@ -1364,6 +1371,124 @@ server.post('/api/inventory/convert', async (request, reply) => {
             error: isValidation ? 'Validation failed' : (e.message || 'Conversion failed'),
             ...(isValidation && { details: e.errors })
         });
+    }
+});
+
+// --- CONCEPT & CATEGORY ROUTES ---
+
+server.get('/api/concepts', async (request, reply) => {
+    try {
+        return await db.query.concepts.findMany();
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch concepts' });
+    }
+});
+
+server.post('/api/concepts', async (request, reply) => {
+    const { id, name, color } = request.body as any; // Todo: Zod
+    try {
+        await db.insert(schema.concepts).values({
+            id: id || `c_${Date.now()}`,
+            name,
+            color
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to create concept' });
+    }
+});
+
+server.put('/api/concepts/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { name, color } = request.body as any;
+    try {
+        await db.update(schema.concepts)
+            .set({ name, color })
+            .where(eq(schema.concepts.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update concept' });
+    }
+});
+
+server.delete('/api/concepts/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        // Prevent deletion if categories exist
+        const linkedCats = await db.query.categories.findFirst({
+            where: eq(schema.categories.conceptId, id)
+        });
+        if (linkedCats) {
+            return reply.code(400).send({ error: 'Cannot delete Concept. Delete its categories first.' });
+        }
+        await db.delete(schema.concepts).where(eq(schema.concepts.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to delete concept' });
+    }
+});
+
+server.get('/api/categories', async (request, reply) => {
+    try {
+        return await db.query.categories.findMany({
+            where: isNull(schema.categories.deletedAt)
+        });
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to fetch categories' });
+    }
+});
+
+server.post('/api/categories', async (request, reply) => {
+    const { id, name, conceptId } = request.body as any;
+    try {
+        await db.insert(schema.categories).values({
+            id: id || `cat_${Date.now()}`,
+            name,
+            conceptId,
+            updatedAt: Date.now()
+        });
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to create category' });
+    }
+});
+
+server.put('/api/categories/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { name, conceptId } = request.body as any;
+    try {
+        await db.update(schema.categories)
+            .set({ name, conceptId, updatedAt: Date.now() })
+            .where(eq(schema.categories.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to update category' });
+    }
+});
+
+server.delete('/api/categories/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    try {
+        const linkedProducts = await db.query.products.findFirst({
+            where: eq(schema.products.categoryId, id)
+        });
+        if (linkedProducts) {
+            return reply.code(400).send({ error: 'Cannot delete category. Products are currently assigned to it. Delete or move them first.' });
+        }
+        await db.update(schema.categories)
+            .set({ deletedAt: Date.now(), updatedAt: Date.now() })
+            .where(eq(schema.categories.id, id));
+        return { success: true };
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to delete category' });
     }
 });
 
@@ -1571,6 +1696,10 @@ server.delete('/api/products/:id/permanent', async (request, reply) => {
     const { id } = request.params as { id: string };
     try {
         await db.transaction(async (tx) => {
+            // Unlink from past orders so we don't break history
+            await tx.update(schema.orderItems)
+                .set({ productId: null })
+                .where(eq(schema.orderItems.productId, id));
             // Unlink all modifier groups from this product
             await tx.delete(schema.productModifiers).where(eq(schema.productModifiers.productId, id));
             // Delete product
@@ -1622,6 +1751,91 @@ server.get('/api/orders/:id', async (request, reply) => {
         reply.code(500).send({ error: 'Failed to fetch order' });
     }
 });
+
+// --- AI INTELLIGENCE ROUTES ---
+
+server.post('/api/ai/chat', async (request, reply) => {
+    try {
+        const ChatSchema = z.object({
+            messages: z.array(z.object({
+                role: z.enum(['user', 'agent']),
+                text: z.string()
+            })),
+            agentTemplate: z.string()
+        });
+
+        const { messages, agentTemplate } = ChatSchema.parse(request.body);
+
+        let systemContext = "You are a helpful AI assistant.";
+        if (agentTemplate === 'BKP') {
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            // Basic metric check
+            const allOrders = await db.query.orders.findMany({
+                where: sql`${schema.orders.createdAt} >= ${startOfDay.getTime()}`
+            });
+            const totalSales = allOrders.reduce((acc, order) => acc + order.total, 0);
+            const txCount = allOrders.length;
+
+            systemContext = `You are the Hyphae AI Bookkeeper. 
+Current metrics for today: Total Sales: $${totalSales.toFixed(2)}, Transactions: ${txCount}.
+Keep answers concise and act as a financial auditor for a restaurant.`;
+        }
+
+        const prompt = `${systemContext}\n\nChat History:\n${messages.map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n')}\nAGENT:`;
+
+        if (ai) {
+            const response = await ai.models.generateContent({
+                model: MODEL_FAST,
+                contents: prompt,
+            });
+            return { result: response.text?.trim() || "No response generated." };
+        } else {
+            return { result: `[MOCK AI - ${agentTemplate}] Offline mode active.` };
+        }
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to process AI chat' });
+    }
+});
+
+server.post('/api/ai/forecast', async (request, reply) => {
+    try {
+        const inventory = await db.query.inventoryItems.findMany();
+        const recentOrders = await db.query.orders.findMany({
+            orderBy: (o, { desc }) => [desc(o.createdAt)],
+            limit: 100,
+            with: { items: true }
+        });
+
+        const prompt = `
+            You are the "Predictive Prep Forecaster" for a restaurant BOH.
+            Based on the following inventory and recent orders, predict the top 3 items that need to be prepped heavily.
+            
+            Inventory Overview:
+            ${JSON.stringify(inventory.map(i => ({ name: i.name, stock: i.stockKitchen, unit: i.stockUnit })))}
+            
+            Recent Orders Volume: ${recentOrders.length}
+            
+            Provide the forecast as a structured list for a prep cook. Keep it under 100 words.
+        `;
+
+        if (ai) {
+            const response = await ai.models.generateContent({
+                model: MODEL_FAST,
+                contents: prompt,
+            });
+            return { result: response.text?.trim() };
+        } else {
+            return { result: `🚀 [MOCK FORECAST]\n1. 🍅 Tomatoes: High velocity. Prep 2x batch.\n2. 🥩 Burger Patties: Stock is medium, prep 1x batch.\n3. 🥬 Lettuce: Running very low, prioritize.` };
+        }
+    } catch (e) {
+        request.log.error(e);
+        reply.code(500).send({ error: 'Failed to generate forecast' });
+    }
+});
+
 
 // START
 const start = async () => {

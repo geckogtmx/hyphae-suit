@@ -71,6 +71,7 @@ import { ApiClient } from './lib/apiClient';
 import { InventoryService } from './lib/inventory';
 import { ProductBuilder } from './components/ProductBuilder';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ConceptManagerModal } from './components/ConceptManagerModal';
 import {
    CONCEPTS,
    CATEGORIES,
@@ -581,18 +582,39 @@ const FinanceView = () => {
 };
 
 const IntelligenceView = () => {
+   const [activeAgentCode, setActiveAgentCode] = useState('BKP');
    const [messages, setMessages] = useState<{ role: 'user' | 'agent', text: string }[]>([
-      { role: 'agent', text: 'Trainer Agent Online. RAG System Active.' }
+      { role: 'agent', text: 'AI Bookkeeper Online. How can I help you analyze financials today?' }
    ]);
    const [input, setInput] = useState('');
+   const [isThinking, setIsThinking] = useState(false);
 
-   const handleSend = () => {
-      if (!input.trim()) return;
-      setMessages(prev => [...prev, { role: 'user', text: input }]);
-      setTimeout(() => {
-         setMessages(prev => [...prev, { role: 'agent', text: "Accessing SOP Database... \n\n[MOCK] Cleaning Protocol 713 retrieved." }]);
-      }, 800);
+   const handleSend = async () => {
+      if (!input.trim() || isThinking) return;
+
+      const newMessages: { role: 'user' | 'agent', text: string }[] = [
+         ...messages,
+         { role: 'user', text: input }
+      ];
+      setMessages(newMessages);
       setInput('');
+      setIsThinking(true);
+
+      const response = await ApiClient.chatAgent(newMessages, activeAgentCode);
+
+      setMessages(prev => [...prev, { role: 'agent', text: response }]);
+      setIsThinking(false);
+   };
+
+   const agents = [
+      { name: 'AI Bookkeeper', code: 'BKP', status: activeAgentCode === 'BKP' ? 'Interactive' : 'Standby', color: activeAgentCode === 'BKP' ? 'text-brand' : 'text-gray-500' },
+      { name: 'Pred. Forecaster', code: 'FCT', status: activeAgentCode === 'FCT' ? 'Interactive' : 'Standby', color: activeAgentCode === 'FCT' ? 'text-emerald-400' : 'text-gray-500' },
+      { name: 'SOP Trainer', code: 'SOP', status: activeAgentCode === 'SOP' ? 'Interactive' : 'Standby', color: activeAgentCode === 'SOP' ? 'text-purple-400' : 'text-gray-500' },
+   ];
+
+   const handleAgentSwitch = (code: string, name: string) => {
+      setActiveAgentCode(code);
+      setMessages([{ role: 'agent', text: `${name} Online. Ready for your queries.` }]);
    };
 
    return (
@@ -601,15 +623,15 @@ const IntelligenceView = () => {
             {/* Sidebar for Agents */}
             <div className="border-r border-white/10 p-6 space-y-4 bg-black/20">
                <div className="text-xs font-mono text-gray-500 uppercase mb-4">Active Neural Nets</div>
-               {[
-                  { name: 'Kitchen Optimizer', code: 'KPO', status: 'Active', color: 'text-emerald-400' },
-                  { name: 'Logistics', code: 'PLS', status: 'Standby', color: 'text-blue-400' },
-                  { name: 'Trainer', code: 'SOP', status: 'Interactive', color: 'text-purple-400' },
-               ].map((a, i) => (
-                  <div key={i} className={`p-4 rounded-xl border border-white/5 ${a.status === 'Interactive' ? 'bg-white/10 border-brand/20' : 'bg-transparent'}`}>
-                     <div className="flex justify-between">
-                        <span className="font-bold text-gray-200">{a.name}</span>
-                        <div className={`w-2 h-2 rounded-full ${a.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-500'}`}></div>
+               {agents.map((a, i) => (
+                  <div
+                     key={i}
+                     onClick={() => handleAgentSwitch(a.code, a.name)}
+                     className={`p-4 rounded-xl border border-white/5 cursor-pointer transition-colors ${a.status === 'Interactive' ? 'bg-white/10 border-brand/20' : 'bg-transparent hover:bg-white/5'}`}
+                  >
+                     <div className="flex justify-between items-center">
+                        <span className={`font-bold ${a.status === 'Interactive' ? 'text-white' : 'text-gray-400'}`}>{a.name}</span>
+                        <div className={`w-2 h-2 rounded-full ${a.status === 'Interactive' ? 'bg-brand shadow-[0_0_10px_rgba(202,240,49,0.5)]' : 'bg-gray-700'}`}></div>
                      </div>
                      <div className={`text-xs font-mono mt-1 ${a.color}`}>{a.status}</div>
                   </div>
@@ -638,35 +660,37 @@ const IntelligenceView = () => {
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleSend()}
-                        className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand/50 font-mono text-sm"
-                        placeholder="Query Vector Database..."
+                        disabled={isThinking}
+                        className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand/50 font-mono text-sm disabled:opacity-50"
+                        placeholder={`Query ${agents.find(a => a.code === activeAgentCode)?.name}...`}
                      />
-                     <button onClick={handleSend} className="p-3 bg-brand/20 text-brand rounded-xl border border-brand/20 hover:bg-brand/30 transition-colors">
+                     <button onClick={handleSend} disabled={isThinking} className="p-3 bg-brand/20 text-brand rounded-xl border border-brand/20 hover:bg-brand/30 transition-colors disabled:opacity-50">
                         <Send size={20} />
                      </button>
                   </div>
                </div>
-               <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end shrink-0 z-10">
+               <div className="p-4 border-t border-white/10 bg-white/5 flex justify-between shrink-0 z-10 items-center">
+                  <div className="text-xs text-gray-500 font-mono">
+                     {isThinking ? '🧠 Neural Net analyzing...' : 'System Idle'}
+                  </div>
                   <button
                      onClick={async () => {
-                        setMessages(prev => [...prev, { role: 'user', text: "Run Strategic Analysis" }]);
+                        handleAgentSwitch('FCT', 'Pred. Forecaster');
+                        setMessages([{ role: 'user', text: "Run Predictive Prep List Forecast" }]);
+                        setIsThinking(true);
                         try {
-                           const report = await ApiClient.analyzePerformance(
-                              // Using local mock transactions and products for demo
-                              [
-                                 { id: 't1', total: 120.00, items: [{ name: 'Spicy Chicken', price: 120 }] },
-                                 { id: 't2', total: 65.00, items: [{ name: 'Fries', price: 65 }] }
-                              ],
-                              MOCK_DATA.products
-                           );
-                           setMessages(prev => [...prev, { role: 'agent', text: typeof report === 'string' ? report : JSON.stringify(report) }]);
+                           const report = await ApiClient.getForecast();
+                           setMessages(prev => [...prev, { role: 'agent', text: report }]);
                         } catch (e) {
-                           setMessages(prev => [...prev, { role: 'agent', text: "Analysis Failed: Backend unavailable." }]);
+                           setMessages(prev => [...prev, { role: 'agent', text: "Forecast Failed: Backend unavailable." }]);
+                        } finally {
+                           setIsThinking(false);
                         }
                      }}
-                     className="text-xs font-mono font-bold text-brand hover:text-white transition-colors flex items-center gap-2"
+                     disabled={isThinking}
+                     className="text-xs font-mono font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 disabled:opacity-50 border border-emerald-400/20 px-3 py-1.5 rounded-lg bg-emerald-400/10 hover:bg-emerald-400/20"
                   >
-                     <Zap size={14} /> AUTO-ANALYZE
+                     <Zap size={14} /> RUN PREDICTIVE FORECAST
                   </button>
                </div>
             </div>
@@ -675,34 +699,46 @@ const IntelligenceView = () => {
    );
 };
 
-const ProductConfigView = ({
-   categories,
-   concepts
-}: {
-   categories: Category[],
-   concepts: Concept[]
-}) => {
+const ProductConfigView = () => {
    const [products, setProducts] = useState<Product[]>([]);
    const [trash, setTrash] = useState<Product[]>([]);
    const [recipes, setRecipes] = useState<RecipeDefinition[]>([]);
    const [inventory, setInventory] = useState<InventoryItem[]>([]);
-   const [loading, setLoading] = useState(true);
-   const [selectedConceptId, setSelectedConceptId] = useState<string>(concepts[0].id);
-   const [showTrash, setShowTrash] = useState(false);
+   const [concepts, setConcepts] = useState<Concept[]>([]);
+   const [categories, setCategories] = useState<Category[]>([]);
 
-   useEffect(() => {
-      Promise.all([
+   const [selectedConceptId, setSelectedConceptId] = useState<string>('');
+   const [showTrash, setShowTrash] = useState(false);
+   const [isConceptModalOpen, setIsConceptModalOpen] = useState(false);
+   const [loading, setLoading] = useState(true);
+
+   const loadAllData = async () => {
+      setLoading(true);
+      const [p, t, r, i, c, cats] = await Promise.all([
          ApiClient.getProducts(),
          ApiClient.getTrash(),
          ApiClient.getRecipes(),
-         ApiClient.getInventory()
-      ]).then(([p, t, r, i]) => {
-         setProducts(p && p.length > 0 ? p : MOCK_DATA.products);
-         setTrash(t || []);
-         setRecipes(r);
-         setInventory(i);
-         setLoading(false);
-      });
+         ApiClient.getInventory(),
+         ApiClient.getConcepts(),
+         ApiClient.getCategories()
+      ]);
+      setProducts(p && p.length > 0 ? p : MOCK_DATA.products);
+      setTrash(t || []);
+      setRecipes(r || []);
+      setInventory(i || []);
+      setConcepts(c && c.length > 0 ? c : MOCK_DATA.concepts);
+      setCategories(cats && cats.length > 0 ? cats : MOCK_DATA.categories);
+
+      if (c && c.length > 0 && !selectedConceptId) {
+         setSelectedConceptId(c[0].id);
+      } else if (!c || c.length === 0) {
+         setSelectedConceptId(MOCK_DATA.concepts[0].id);
+      }
+      setLoading(false);
+   };
+
+   useEffect(() => {
+      loadAllData();
    }, []);
 
    const handleSave = async (updatedProducts: Product[]) => {
@@ -782,12 +818,19 @@ const ProductConfigView = ({
                         setShowTrash(false);
                      }}
                      className={`px-6 py-2.5 rounded-xl font-black text-xs tracking-widest transition-all ${selectedConceptId === c.id && !showTrash
-                        ? 'bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/10'
+                        ? `bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)] border border-white/10`
                         : 'text-gray-500 hover:text-gray-300'}`}
                   >
                      {c.name.toUpperCase()}
                   </button>
                ))}
+               <button
+                  onClick={() => setIsConceptModalOpen(true)}
+                  className="px-3 py-2 rounded-xl text-gray-500 hover:text-white border border-dashed border-white/20 hover:border-white/50 transition-colors ml-2"
+                  title="Manage Modes & Categories"
+               >
+                  <Settings size={16} />
+               </button>
             </div>
 
             <button
@@ -815,6 +858,12 @@ const ProductConfigView = ({
             recipes={recipes}
             inventory={inventory}
             activeConcept={activeConcept}
+         />
+
+         <ConceptManagerModal
+            isOpen={isConceptModalOpen}
+            onClose={() => setIsConceptModalOpen(false)}
+            onConceptUpdated={loadAllData}
          />
       </div>
    );
@@ -882,10 +931,7 @@ const App = () => {
                {activeView === 'finance' && <FinanceView />}
                {activeView === 'intelligence' && <IntelligenceView />}
                {activeView === 'products' && (
-                  <ProductConfigView
-                     categories={MOCK_DATA.categories}
-                     concepts={MOCK_DATA.concepts}
-                  />
+                  <ProductConfigView />
                )}
                {activeView === 'inventory' && <InventoryView />}
                {activeView === 'kitchen' && <RecipesView />}

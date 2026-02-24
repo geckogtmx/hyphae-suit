@@ -41,6 +41,47 @@ export const ApiClient = {
         }
     },
 
+    async chatAgent(messages: { role: 'user' | 'agent', text: string }[], agentTemplate: string) {
+        try {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+
+            const response = await fetch(`${API_BASE_URL}/ai/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ messages, agentTemplate }),
+            });
+            if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+            const data = await response.json();
+            return data.result;
+        } catch (error) {
+            console.error('Agent chat failed', error);
+            return "Agent unavailable.";
+        }
+    },
+
+    async getForecast() {
+        try {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+
+            const response = await fetch(`${API_BASE_URL}/ai/forecast`, {
+                method: 'POST',
+                headers
+            });
+            if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+            const data = await response.json();
+            return data.result;
+        } catch (error) {
+            console.error('Forecast failed', error);
+            return "Forecast unavailable.";
+        }
+    },
+
     async generateKitchenNote(productName: string) {
         try {
             const headers: Record<string, string> = {
@@ -82,6 +123,112 @@ export const ApiClient = {
         } catch (error) {
             console.error('Failed to fetch loyalty summary', error);
             return { totalMembers: 0, recentEnrollments: 0 }; // Fallback
+        }
+    },
+
+    // --- CONCEPTS ---
+    async getConcepts() {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/concepts`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch concepts');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch concepts', error);
+            return [];
+        }
+    },
+
+    async createConcept(concept: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/concepts`, { method: 'POST', headers, body: JSON.stringify(concept) });
+            if (!response.ok) throw new Error('Failed to create concept');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to create concept', error);
+            throw error;
+        }
+    },
+
+    async updateConcept(id: string, concept: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/concepts/${id}`, { method: 'PUT', headers, body: JSON.stringify(concept) });
+            if (!response.ok) throw new Error('Failed to update concept');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to update concept', error);
+            throw error;
+        }
+    },
+
+    async deleteConcept(id: string) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/concepts/${id}`, { method: 'DELETE', headers });
+            if (!response.ok) throw new Error('Failed to delete concept');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to delete concept', error);
+            throw error;
+        }
+    },
+
+    // --- CATEGORIES ---
+    async getCategories() {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/categories`, { headers });
+            if (!response.ok) throw new Error('Failed to fetch categories');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch categories', error);
+            return [];
+        }
+    },
+
+    async createCategory(category: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/categories`, { method: 'POST', headers, body: JSON.stringify(category) });
+            if (!response.ok) throw new Error('Failed to create category');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to create category', error);
+            throw error;
+        }
+    },
+
+    async updateCategory(id: string, category: any) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/categories/${id}`, { method: 'PUT', headers, body: JSON.stringify(category) });
+            if (!response.ok) throw new Error('Failed to update category');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to update category', error);
+            throw error;
+        }
+    },
+
+    async deleteCategory(id: string) {
+        try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (API_KEY) headers['x-api-key'] = API_KEY;
+            const response = await fetch(`${API_BASE_URL}/categories/${id}`, { method: 'DELETE', headers });
+            if (!response.ok) throw new Error('Failed to delete category');
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to delete category', error);
+            throw error;
         }
     },
 
@@ -196,7 +343,8 @@ export const ApiClient = {
             if (API_KEY) headers['x-api-key'] = API_KEY;
             const response = await fetch(`${API_BASE_URL}/products/${productId}/restore`, {
                 method: 'POST',
-                headers
+                headers,
+                body: JSON.stringify({})
             });
             if (!response.ok) throw new Error('Failed to restore product');
             return { success: true };

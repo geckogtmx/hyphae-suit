@@ -167,14 +167,28 @@ export const InventoryItemBuilder: React.FC<InventoryItemBuilderProps> = ({
                         <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2">
                             <AlertCircle size={14} className="text-yellow-500" /> {item.id ? 'Live Stock Adjustment' : 'Initial Stock Seed (Optional)'}
                         </h3>
-                        <div>
-                            <label className="block text-[9px] text-gray-500 uppercase mb-1">Kitchen Stock</label>
-                            <input
-                                type="number"
-                                value={item.stockKitchen}
-                                onChange={e => setItem({ ...item, stockKitchen: parseFloat(e.target.value) })}
-                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none text-xs font-mono"
-                            />
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[9px] text-gray-500 uppercase mb-1">Kitchen Stock</label>
+                                <input
+                                    type="number"
+                                    value={item.stockKitchen}
+                                    onChange={e => setItem({ ...item, stockKitchen: parseFloat(e.target.value) })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none text-xs font-mono"
+                                />
+                            </div>
+                            {item.id && (
+                                <div>
+                                    <label className="block text-[9px] text-gray-500 uppercase mb-1">Reason for Adjustment</label>
+                                    <input
+                                        type="text"
+                                        value={item.adjustmentReason || ''}
+                                        onChange={e => setItem({ ...item, adjustmentReason: e.target.value })}
+                                        placeholder="e.g. Found extra in walk-in, Spoilage, etc."
+                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white outline-none text-xs"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
